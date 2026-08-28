@@ -1,189 +1,196 @@
 <div align="center">
 
-# SETU-Swasthya
+# 🌉 SETU-Swasthya
 
-**A hybrid offline-and-online care-access platform for rural and underserved districts**
+### The bridge between a rural patient and the care they can't reach.
 
-[![Status](https://img.shields.io/badge/status-MVP-orange)]()
-[![Platform](https://img.shields.io/badge/platform-Android-3DDC84?logo=android&logoColor=white)]()
-[![Frontend](https://img.shields.io/badge/frontend-Flutter-02569B?logo=flutter&logoColor=white)]()
-[![Backend](https://img.shields.io/badge/backend-FastAPI-009688?logo=fastapi&logoColor=white)]()
-[![Database](https://img.shields.io/badge/database-PostgreSQL-4169E1?logo=postgresql&logoColor=white)]()
-[![License](https://img.shields.io/badge/license-Unspecified-lightgrey)]()
+A hybrid offline-and-online mobile platform that gives frontline health workers a
+shared patient record, offline triage with automatic red-flag detection, assisted
+teleconsultation, and referrals that can never silently disappear.
+
+[![Status](https://img.shields.io/badge/status-MVP-orange?style=flat-square)]()
+[![Platform](https://img.shields.io/badge/platform-Android-3DDC84?style=flat-square&logo=android&logoColor=white)]()
+[![Flutter](https://img.shields.io/badge/frontend-Flutter-02569B?style=flat-square&logo=flutter&logoColor=white)]()
+[![FastAPI](https://img.shields.io/badge/backend-FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white)]()
+[![PostgreSQL](https://img.shields.io/badge/database-PostgreSQL-4169E1?style=flat-square&logo=postgresql&logoColor=white)]()
+[![Offline First](https://img.shields.io/badge/design-offline--first-6E56CF?style=flat-square)]()
+[![License](https://img.shields.io/badge/license-TBD-lightgrey?style=flat-square)]()
 
 </div>
 
-SETU-Swasthya ("setu" = bridge) is a thin coordination layer over existing rural health
-infrastructure — ASHAs, ANMs, CHOs, MOs, and specialists — that gives them a shared
-patient record, rule-based triage with automatic red-flag detection, assisted
-teleconsultation, and closed-loop referral tracking that never lets a case silently
-disappear. It is built to work **completely offline** in low-connectivity areas and to
-**sync automatically** once connectivity returns.
+<br>
 
----
+## Why this exists
 
-## Table of Contents
+> In a typical rural district, a patient's care is scattered across four or five
+> disconnected facility tiers, with no shared record, no tracked referrals, and
+> specialists concentrated far from where most patients live.
 
-- [The Problem](#the-problem)
-- [The Solution](#the-solution)
-- [MVP Status](#mvp-status)
-- [Tech Stack](#tech-stack)
-- [Architecture](#architecture-mvp)
-- [System Data Flow](#system-data-flow)
-- [Getting Started](#getting-started)
-- [Team](#team)
-- [Roadmap](#roadmap-beyond-the-mvp)
-- [Design Principles](#design-principles)
-- [Contributing](#contributing)
-- [License](#license)
+- 🩺 **A pregnant woman flagged high-risk** at a sub-centre can reach a district
+  hospital months later with none of her history available.
+- 📋 **A referral written on a paper slip** is never tracked — nobody knows if the
+  patient ever arrived.
+- 📡 **A specialist opinion costs a full day's wage** because it means physically
+  travelling to district headquarters.
 
----
+SETU-Swasthya closes these gaps with software that works **completely offline**,
+**syncs automatically** when a signal is found, and turns every clinical commitment
+into something with a status, an owner, and a due date.
 
-## The Problem
+<br>
 
-In a typical rural district, a patient's care is scattered across four or five
-disconnected facility tiers (sub-centre → PHC → CHC → sub-divisional/district hospital),
-with no shared record between them, specialists concentrated far from where most
-patients live, and referrals written on paper slips that are never tracked. The result:
-late care, incomplete referrals, and poor follow-up for maternal, child, and chronic
-conditions.
+## ✨ Core capabilities
 
-## The Solution
+| | |
+|---|---|
+| 🚦 **Rule-based triage** | Deterministic, auditable, explainable red-flag detection — not a black box. Runs fully on-device. |
+| 📞 **Assisted teleconsultation** | A health worker sits with the patient; a distant specialist weighs in — video → audio → store-and-forward, degrading gracefully with connectivity. |
+| 🔁 **Closed-loop referrals** | Every referral is a stateful object (`Initiated → Booked → Consulted → Closed`) with automatic breach detection and escalation. |
+| 🗂️ **Longitudinal patient record** | One record per patient, written locally first, synced the moment connectivity returns. |
+| 📊 **Exception-first dashboards** | Managers see what's broken and who owns it — not a raw data dump. |
 
-SETU-Swasthya bundles this into one hybrid mobile app:
+<br>
 
-- **Digital triage** — deterministic, auditable, offline-capable red-flag detection
-  (not a black-box model)
-- **Assisted teleconsultation** — a health worker sits with the patient; a distant
-  specialist provides the opinion, degrading gracefully from video → audio → asynchronous
-  store-and-forward
-- **Closed-loop referral tracking** — every referral is a stateful object
-  (`Initiated → Booked → Consulted → Closed`) with automatic breach detection and
-  escalation, so no case is silently lost
-- **Longitudinal patient record** — one record per patient, offline-first, synced when
-  connectivity returns
-- **Exception-first dashboards** — managers see what's broken and who owns it, not a raw
-  data dump
-
-## MVP Status
+## 🚀 MVP status
 
 A working, installable app demonstrating the full offline-and-online loop:
 
-- Patient registration (offline-first, via local storage)
-- Rule-based triage with red-flag detection
-- Referral creation and breach tracking
-- A basic facility dashboard (counts + exceptions)
+- [x] Offline-first patient registration
+- [x] Rule-based triage with red-flag detection
+- [x] Referral creation and breach tracking
+- [x] Basic facility dashboard (counts + exceptions)
 
-**MVP success criteria**
+<details>
+<summary><strong>MVP success criteria</strong></summary>
+<br>
+
 1. The app works fully with the device offline (airplane mode) for registration and triage.
 2. Triage correctly flags at least one emergency case using the red-flag logic.
-3. A referral can be created, its status is visible, and a breach is correctly shown after
-   the relevant time threshold.
+3. A referral can be created, its status is visible, and a breach is correctly shown
+   after the relevant time threshold.
 4. Data created offline syncs correctly to the backend once connectivity returns.
 5. The dashboard reflects live counts pulled from the backend.
 
-Deferred to later phases: appointment/queue management, diagnostic coordination,
-medicine availability, high-risk registries, dedicated emergency escalation, full
-teleconsultation (video/media server), interoperability (FHIR/ABDM), and all
-security/consent/compliance work required before real patient data is used.
+</details>
 
----
+<details>
+<summary><strong>Deferred to later phases</strong></summary>
+<br>
 
-## Tech Stack
+Appointment/queue management, diagnostic coordination, medicine availability,
+high-risk registries, dedicated emergency escalation, full teleconsultation
+(video/media server), interoperability (FHIR/ABDM), and all security/consent/
+compliance work required before real patient data is used.
 
-| Layer | Technology |
-| --- | --- |
-| Mobile app | Flutter (Dart) — offline-first, Android first |
-| Local storage | Hive (MVP) → Isar/SQLite in later phases |
-| State management | Riverpod |
-| Navigation | go_router |
-| Networking / sync | dio + a dedicated Sync Service, background sync via `workmanager` |
-| Backend | FastAPI (Python 3.11+) |
-| Database | PostgreSQL, via SQLModel + Alembic migrations |
-| Auth | JWT (MVP) → OIDC identity provider (full build) |
-| Triage logic | Deterministic, auditable rule engine (pure Python) — explainable by design |
-| Risk modeling | scikit-learn, trained on synthetic data only |
-| Containerization | Docker + docker-compose |
-| Hosting (MVP) | Render / Railway / Fly.io |
+</details>
 
-No proprietary or vendor-locked components. All patient/village/facility data used in
-the MVP is **synthetic**, generated by script — never real patient information.
+<br>
 
----
+## 🏗️ Architecture
 
-## System Data Flow
+```mermaid
+flowchart TB
+    subgraph Device["📱 Device — works fully offline"]
+        UI[Flutter App]
+        Local[(Local DB — Hive)]
+        UI <--> Local
+    end
 
-```
-Health worker opens app (may have zero signal)
-        │
-        ▼
-Patient registration form → written to LOCAL database first (works offline)
-        │
-        ▼
-Triage run on patient → rule engine evaluates vitals (fully offline)
-        │
-        ▼
-Disposition returned: Manage / Teleconsult / Refer / Emergency
-        │
-        ▼
-If Refer/Emergency → referral record created, written locally first
-        │
-        ▼
-Connectivity returns → Sync Service uploads pending records via /sync
-        │
-        ▼
-Backend saves to PostgreSQL, re-validates triage, checks referral breach status
-        │
-        ▼
-Dashboard queries backend → shows updated counts and breached referrals
+    subgraph Backend["☁️ Backend — FastAPI + PostgreSQL"]
+        API[API Endpoints]
+        Sync[/sync endpoint/]
+        DB[(PostgreSQL)]
+        API <--> DB
+    end
+
+    subgraph ML["🧠 ML Layer"]
+        Rules[Rule Engine]
+        Risk[Risk Model]
+    end
+
+    Dashboard["📊 Facility Dashboard"]
+
+    Device -- "sync when online" --> Sync
+    Sync --> API
+    API --> ML
+    API --> Dashboard
 ```
 
----
+<br>
 
-## Architecture (MVP)
+## 🔄 How a single patient record moves through the system
 
+```mermaid
+sequenceDiagram
+    participant HW as Health Worker
+    participant App as Flutter App
+    participant Local as Local DB
+    participant Rules as Rule Engine
+    participant BE as Backend
+    participant Dash as Dashboard
+
+    HW->>App: Register patient (offline OK)
+    App->>Local: Save immediately
+    HW->>App: Run triage
+    App->>Rules: Evaluate vitals (on-device)
+    Rules-->>App: Disposition (Manage / Teleconsult / Refer / Emergency)
+    App->>Local: Save referral if needed
+    Note over App,BE: Connectivity returns
+    App->>BE: Sync pending records
+    BE->>BE: Re-validate triage, check breach status
+    BE-->>Dash: Updated counts + exceptions
 ```
-┌──────────────────────────────────────────────┐
-│ DEVICE — works fully offline                  │
-│  Flutter app (UI)  +  Local database (Hive)   │
-└───────────────────┬────────────────────────────┘
-                    │ sync when online
-                    ▼
-┌────────────────────────────┐   ┌───────────────────┐
-│ BACKEND — FastAPI+Postgres │──►│ ML — rule engine + │
-│  API endpoints + /sync     │   │ risk model         │
-└───────────────────┬────────┘   └───────────────────┘
-                    ▼
-┌──────────────────────────────────────────────┐
-│ DASHBOARD — facility counts + exceptions      │
-└──────────────────────────────────────────────┘
-```
 
----
+<br>
 
-## Team
+## 🧰 Tech stack
 
-| Member | Role |
-| --- | --- |
-| Aditya | Backend lead — FastAPI, database, API contract |
-| Iqra | Backend — endpoints, integration, deployment |
-| Faeza | Frontend — Flutter UI, offline data layer |
-| Prateek | Frontend — state management, sync, connectivity |
-| SD | Machine learning — triage rule engine, automation |
-| Devansh | Machine learning — risk modeling, synthetic data |
+<table>
+<tr>
+<td valign="top" width="50%">
 
----
+**Mobile**
+- Flutter (Dart) — offline-first, Android first
+- Hive → Isar/SQLite (later phases)
+- Riverpod (state management)
+- go_router (navigation)
+- dio + Sync Service (networking/sync)
+- workmanager (background sync)
 
-## Getting Started
+</td>
+<td valign="top" width="50%">
 
-### Prerequisites
+**Backend & ML**
+- FastAPI (Python 3.11+)
+- PostgreSQL via SQLModel + Alembic
+- JWT → OIDC (auth)
+- Deterministic Python rule engine (triage)
+- scikit-learn on synthetic data (risk modeling)
+- Docker + docker-compose
+
+</td>
+</tr>
+</table>
+
+> No proprietary or vendor-locked components. All patient/village/facility data in the
+> MVP is **synthetic** — never real patient information.
+
+<br>
+
+## ⚡ Getting started
+
+<details open>
+<summary><strong>Prerequisites</strong></summary>
+<br>
 
 - Docker + docker-compose
 - Python 3.11+
-- Flutter SDK (`flutter doctor` should pass with no errors)
-- PostgreSQL (via Docker, see below)
+- Flutter SDK (`flutter doctor` passes with no errors)
 
-### Backend
+</details>
+
+<details>
+<summary><strong>Backend setup</strong></summary>
 
 ```bash
 # Start the API + database
@@ -196,11 +203,13 @@ alembic upgrade head
 # Run tests
 pytest
 
-# Interactive API docs
-# visit http://localhost:8000/docs
+# Interactive API docs → http://localhost:8000/docs
 ```
 
-### Frontend
+</details>
+
+<details>
+<summary><strong>Frontend setup</strong></summary>
 
 ```bash
 # Install dependencies
@@ -216,11 +225,14 @@ dart run build_runner build --delete-conflicting-outputs
 flutter build apk --release
 ```
 
-> **Testing offline behavior:** enable airplane mode on the device/emulator, use the app
-> normally (registration + triage), then reconnect and confirm the sync completes
-> correctly. This is the single most important manual test in the whole build.
+> **Testing offline behavior:** enable airplane mode, use the app normally
+> (registration + triage), then reconnect and confirm sync completes. This is the
+> single most important manual test in the whole build.
 
-### Machine learning
+</details>
+
+<details>
+<summary><strong>Machine learning setup</strong></summary>
 
 ```bash
 # Run rule engine unit tests
@@ -233,52 +245,84 @@ python ml/generate_synthetic_data.py
 python ml/train_risk_model.py
 ```
 
----
+</details>
 
-## Roadmap Beyond the MVP
+<br>
 
-1. **Core hardening** — delta sync with conflict resolution, real teleconsultation via a
-   media server, versioned/auditable triage rules, OIDC auth, full localization.
-2. **Full module build-out** — closed-loop referral (full version), diagnostic
-   coordination, medicine/commodity visibility, high-risk registries, dedicated emergency
-   escalation, three-tier equity-aware dashboards, FHIR interoperability.
-3. **Production deployment** — encryption at rest/in transit, privacy impact assessment,
-   external security audit, consent flows, staged rollout with parallel-run and
-   measured success criteria before any manual process is retired.
+## 👥 Team
 
-Real patient data is out of scope until the consent, security, and compliance work in
-the production phase is complete.
+| | Member | Focus |
+|---|---|---|
+| 🔧 | **Aditya** | Backend lead — FastAPI, database, API contract |
+| 🔧 | **Iqra** | Backend — endpoints, integration, deployment |
+| 🎨 | **Faeza** | Frontend — Flutter UI, offline data layer |
+| 🎨 | **Prateek** | Frontend — state management, sync, connectivity |
+| 🧠 | **SD** | ML — triage rule engine, automation |
+| 🧠 | **Devansh** | ML — risk modeling, synthetic data |
 
----
+<br>
 
-## Design Principles
+## 🗺️ Roadmap
 
-- **Offline-first, not offline-tolerant** — every core workflow completes with zero
-  connectivity.
-- **Closed loop on every commitment** — referrals, tests, and follow-ups all have a
-  status, an owner, and a due date.
-- **Explainable, not opaque** — triage is a deterministic, auditable rule set; a health
-  worker can always escalate above its recommendation.
+<details>
+<summary><strong>Phase 2 — Core hardening</strong></summary>
+<br>
+
+Delta sync with conflict resolution, real teleconsultation via a media server,
+versioned/auditable triage rules, OIDC auth, full localization.
+
+</details>
+
+<details>
+<summary><strong>Phase 3 — Full module build-out</strong></summary>
+<br>
+
+Closed-loop referral (full version), diagnostic coordination, medicine/commodity
+visibility, high-risk registries, dedicated emergency escalation, three-tier
+equity-aware dashboards, FHIR interoperability.
+
+</details>
+
+<details>
+<summary><strong>Phase 4 — Production deployment</strong></summary>
+<br>
+
+Encryption at rest/in transit, privacy impact assessment, external security audit,
+consent flows, staged rollout with parallel-run and measured success criteria before
+any manual process is retired.
+
+</details>
+
+> Real patient data is out of scope until the consent, security, and compliance work
+> in Phase 4 is complete.
+
+<br>
+
+## 🧭 Design principles
+
+- **Offline-first, not offline-tolerant** — every core workflow completes with zero connectivity.
+- **Closed loop on every commitment** — referrals, tests, and follow-ups all have a status, an owner, and a due date.
+- **Explainable, not opaque** — triage is a deterministic, auditable rule set; a worker can always escalate above it.
 - **Exception-based management** — dashboards show what's broken, not everything.
 - **No vendor lock-in** — open standards, no proprietary data formats.
 
----
+<br>
 
-## Contributing
+## 🤝 Contributing
 
-1. Create a feature branch off `dev`: `git checkout -b feature/short-description`
+1. Branch off `dev`: `git checkout -b feature/short-description`
 2. Keep changes scoped to your module/screen to minimize merge conflicts.
-3. Ensure tests pass (`pytest` for backend/ML) before opening a pull request.
-4. Never commit secrets or `.env` files — see `.gitignore`.
+3. Ensure tests pass (`pytest`) before opening a pull request.
+4. Never commit secrets or `.env` files.
 5. Only demonstration-ready, reviewed builds are merged into `main`.
 
+<br>
+
 ---
 
-## License
-
-License to be determined.
-
 <div align="center">
+
+**Built with** 💙 Flutter · ⚡ FastAPI · 🐘 PostgreSQL · 🐍 Python
 
 *Closing the information and accountability gaps that keep existing clinical capacity
 from reaching the people who need it.*
