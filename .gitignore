@@ -10,6 +10,9 @@ env/
 .env.*
 !.env.example
 
+# Secrets (RS256 key pairs, KMS-adjacent material — never commit)
+secrets/
+
 # macOS
 .DS_Store
 
