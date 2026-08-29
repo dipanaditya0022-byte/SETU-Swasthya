@@ -24,8 +24,11 @@ than guessed. Resolved by the user for this migration as follows:
   - reparenting or renaming a node cascades: every existing descendant's
     `path` is rewritten with the old prefix replaced by the new one, and
     `depth` is shifted by the same delta. Implemented as two triggers:
-    one BEFORE INSERT/UPDATE (recomputes the row's own path/depth from its
-    current parent), one AFTER UPDATE OF path (rewrites descendants).
+    one BEFORE INSERT/UPDATE OF parent_id, name (recomputes the row's own
+    path/depth from its current parent), one AFTER UPDATE OF parent_id,
+    name (rewrites descendants) -- deliberately not "OF path": see the
+    comment above the second trigger's CREATE TRIGGER statement for why
+    "OF path" would silently never fire on a real rename/reparent.
 """
 from typing import Sequence, Union
 
