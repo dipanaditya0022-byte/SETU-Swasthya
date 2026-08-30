@@ -155,26 +155,65 @@ and each record's own `status` (`"accepted"` or `"rejected"`).
 
 ## POST /login
 
-Authenticates a hardcoded Day 1 user.
+**Amended 2026-08-30 (Day 1 RBAC, §16).** Permanent alias of
+`POST /auth/login` (both routes call the exact same handler). No longer
+authenticates a hardcoded user — this now checks real accounts in the
+RBAC `users` table. The request body accepts every field either login
+method needs; you only ever fill in the subset your account's role
+actually requires, per Day1.md §10.1's per-role login method table.
 
 ### Request
 
 ```json
 {
-  "username": "aditya",
-  "password": "aditya123"
+  "mobile": "string",
+  "email": "string",
+  "password": "string",
+  "otp_token": "string",
+  "device_fingerprint": "string",
+  "device_label": "string"
 }
 ```
 
+| Field | Required when | Notes |
+|---|---|---|
+| `mobile` | Always, unless `email` is given | Whichever identifier the account was registered/invited with |
+| `email` | Only if `mobile` is omitted | Same as above |
+| `password` | Role's login method is `password` (most staff roles) | Set via `POST /auth/invite/accept` at account activation, or later via `POST /auth/password/change`/`reset` |
+| `otp_token` | Role's login method is `otp` (`ASHA`, `PATIENT`, `VHSNC_MEMBER`) | **Not** the raw 6-digit code. Call `POST /auth/otp/request` first (sends/prints an OTP), then `POST /auth/otp/verify` with that raw OTP — its response is this `otp_token` |
+| `device_fingerprint` | Never required | Optional client-supplied label, shown later in `GET /auth/sessions` |
+| `device_label` | Never required | Same as above |
+
 ### Response
 
-Returns a JWT bearer token and the user role.
+Normal success — a JWT bearer token, refresh token, and expiry:
+
+```json
+{
+  "access_token": "...",
+  "refresh_token": "...",
+  "token_type": "bearer",
+  "expires_in": 900
+}
+```
+
+If the role has mandatory MFA and is already enrolled, a correct
+password/OTP instead returns an MFA challenge, not tokens yet:
+
+```json
+{"mfa_required": true, "mfa_challenge_token": "...", "amr_so_far": ["pwd"]}
+```
+
+Complete the login by calling `POST /auth/mfa/verify` with that
+`mfa_challenge_token` and a current TOTP code.
 
 ---
 
 ## GET /me
 
-Returns the username and role encoded in the JWT.
+**Amended 2026-08-30 (Day 1 RBAC, §14.1).** Permanent alias of
+`GET /auth/me`. Response gains `role`, `permissions`, and `scope` on top
+of the original identity fields — no existing field was removed.
 
 ### Header
 
@@ -182,4 +221,13 @@ Returns the username and role encoded in the JWT.
 
 ### Response
 
-Returns the authenticated username and role.
+```json
+{
+  "id": "...",
+  "role": "BMO",
+  "permissions": ["patient:create", "patient:read", "..."],
+  "scope": {"org_unit_id": "...", "scope_path": "/UP/KANPUR/..."},
+  "full_name": "...",
+  "mobile_masked": "+91XXXXX00001"
+}
+```
