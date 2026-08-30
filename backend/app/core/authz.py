@@ -220,7 +220,7 @@ def _audit_denied(session: Session, actor_user_id: Optional[str], action: str, d
 
 
 def get_current_active_user(
-    authorization: str = Header(...),
+    authorization: Optional[str] = Header(default=None),
     session: Session = Depends(get_session),
 ):
     """New glue code (see module docstring) -- resolves the bearer token
@@ -228,8 +228,17 @@ def get_current_active_user(
     audience/expiry, checks token_version against the live row (SS10.3:
     "a token with a stale ver is rejected... a demotion takes effect
     within milliseconds"), and confirms status == ACTIVE. Fails closed:
-    any problem raises 401, never returns a partially-valid user."""
-    if not authorization.startswith("Bearer "):
+    any problem raises 401, never returns a partially-valid user.
+
+    `authorization` is deliberately Optional (not FastAPI's usual
+    `Header(...)` required-field shorthand): a required Header makes
+    FastAPI itself reject a missing header with its own generic 422
+    before this function ever runs -- found by direct testing, and
+    wrong, since Day1.md's own examples (SS19.2 T3: `POST /users` with
+    no Authorization header -> EXPECT 401) treat a missing credential
+    as an authentication failure, not a validation error. Checking for
+    None here and raising 401 ourselves is what makes that match."""
+    if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(401, {"code": "INVALID_TOKEN", "detail": "Missing bearer token."})
     token = authorization[len("Bearer "):]
     try:

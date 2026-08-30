@@ -23,6 +23,7 @@ psycopg-binary==3.3.4
 pwdlib==0.3.1
 pyasn1==0.6.4
 pycparser==3.0
+PyOTP==2.10.0
 pydantic==2.13.5
 pydantic-settings==2.15.0
 pydantic_core==2.46.5
