@@ -192,19 +192,52 @@ sequenceDiagram
 <details>
 <summary><strong>Backend setup</strong></summary>
 
+**Option A — Docker (recommended, matches deployment):**
+
 ```bash
-# Start the API + database
-docker-compose up
+cd backend
 
-# Run migrations after changing a model
-alembic revision --autogenerate -m "describe the change"
-alembic upgrade head
+# 1. Copy the env template and fill in real values (never commit .env)
+cp .env.example .env
 
-# Run tests
-pytest
+# 2. Build and start the API + database
+docker compose up --build
+# → API:  http://localhost:8002  (container listens on 8000, mapped to host 8002)
+# → Docs: http://localhost:8002/docs
 
-# Interactive API docs → http://localhost:8000/docs
+# Migrations run automatically on container start (see Dockerfile CMD),
+# but to run them manually, or after changing a model:
+docker compose exec api alembic revision --autogenerate -m "describe the change"
+docker compose exec api alembic upgrade head
+
+# Run tests inside the container
+docker compose exec api pytest
+
+# Stop everything (add -v to also wipe the Postgres volume)
+docker compose down
 ```
+
+**Option B — Local Python (no Docker for the API, Postgres still via Docker):**
+
+```bash
+cd backend
+python -m venv venv && source venv/bin/activate   # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+
+cp .env.example .env
+# Edit .env — DATABASE_URL must point at localhost since Postgres isn't containerized
+# alongside the app here. Start just the db service:
+docker compose up db
+
+alembic upgrade head
+uvicorn app.main:app --reload
+# → API:  http://localhost:8000
+# → Docs: http://localhost:8000/docs
+```
+
+> `DATABASE_URL` uses the `postgresql+psycopg` dialect (psycopg v3) — a plain
+> `postgresql://` URL will fail since psycopg2 isn't installed. See `.env.example`
+> for the exact format.
 
 </details>
 
