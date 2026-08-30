@@ -58,6 +58,20 @@ WHAT IS VERBATIM VS ADAPTED VS NEW -- read before reviewing:
   already-passed Gate 2, exactly as SS3.2 states ("Gate 4 exists even
   though Gate 2 already passed... turns that data error into a
   rejected request rather than a privilege escalation").
+
+- BUG FOUND AND FIXED (post-S15, discovered live while helping the user
+  bootstrap test staff accounts): Gate 3's `org_unit_is_within_scope`
+  call fails closed to False whenever `actor.scope_org_unit_id` is None
+  -- which is ALWAYS true for SUPERUSER (`chk_scope_required` exempts it
+  from ever having a posting). Without an exemption, Gate 3 could never
+  pass for SUPERUSER against ANY org unit, meaning SUPERUSER could not
+  create a single staff member through `POST /users` -- directly
+  contradicting Day1.md's own text ("SUPERUSER... bypasses the tree
+  entirely for creation... may create any role at any org unit") and
+  inconsistent with Gate 4 below, which already exempted SUPERUSER in
+  this same function. Fixed by giving Gate 3 the same SUPERUSER
+  exemption Gate 4 already had. Confirmed with the user directly before
+  changing this security-critical, already-shipped module.
 """
 from __future__ import annotations
 
@@ -165,11 +179,25 @@ def assert_can_create_user(
 
     # GATE 3 -- org scope containment. The target posting must sit inside
     # the actor's subtree. A Rampur BMO cannot create staff in Bilhaur block.
-    if not org_unit_is_within_scope(session, target_org_unit_id, actor.scope_org_unit_id):
-        raise CreationDenied(
-            "OUT_OF_SCOPE",
-            "That posting is outside the area you manage.",
-        )
+    #
+    # SUPERUSER exemption -- found by testing (a real bug, not present
+    # before this fix): org_unit_is_within_scope fails closed to False
+    # whenever actor.scope_org_unit_id is None, which is ALWAYS true for
+    # SUPERUSER (chk_scope_required exempts it from ever having a
+    # posting). Without this exemption, Gate 3 could never pass for
+    # SUPERUSER against any org unit, contradicting Day1.md's own
+    # explicit text: "SUPERUSER sits above the entire chain and may
+    # create any role at any org unit... bypasses the tree entirely for
+    # creation" -- and inconsistent with Gate 4 below, which already
+    # exempts SUPERUSER in this same function. Gate 3 now gets the same
+    # treatment Gate 4 already had.
+    actor_role_for_gate3 = actor.role if isinstance(actor.role, RoleCode) else RoleCode(actor.role)
+    if actor_role_for_gate3 != RoleCode.SUPERUSER:
+        if not org_unit_is_within_scope(session, target_org_unit_id, actor.scope_org_unit_id):
+            raise CreationDenied(
+                "OUT_OF_SCOPE",
+                "That posting is outside the area you manage.",
+            )
 
     # GATE 4 -- level sanity. Belt-and-braces against a bad grant row.
     # SUPERUSER is the only role permitted to create at its own level.
