@@ -31,3 +31,7 @@ app.include_router(auth_router)
 from app.api.routes.users import router as users_router
 
 app.include_router(users_router)
+
+from app.api.routes.governance import router as governance_router
+
+app.include_router(governance_router)
