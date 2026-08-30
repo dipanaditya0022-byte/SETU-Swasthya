@@ -152,11 +152,15 @@ def assert_can_create_user(
         raise CreationDenied("MFA_REQUIRED", "Enrol MFA before creating users.")
 
     # GATE 2 -- an explicit grant row must exist. No implicit level comparison.
-    grant = get_creation_grant(session, actor.role, target_role.value if isinstance(target_role, RoleCode) else target_role)
+    target_role_value = target_role.value if isinstance(target_role, RoleCode) else target_role
+    grant = get_creation_grant(session, actor.role, target_role_value)
     if grant is None:
         raise CreationDenied(
             "ROLE_NOT_CREATABLE",
-            f"{actor.role} may not create {target_role}.",
+            # .value, not the RoleCode object itself -- found by testing: an
+            # f-string on the enum member renders "RoleCode.MEDICAL_OFFICER",
+            # not "MEDICAL_OFFICER", which is confusing in an error response.
+            f"{actor.role} may not create {target_role_value}.",
         )
 
     # GATE 3 -- org scope containment. The target posting must sit inside
