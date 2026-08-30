@@ -378,15 +378,28 @@ def create_user(
     email_enc = encrypt_field(parsed.common.email) if parsed.common.email else None
     email_bi = blind_index(parsed.common.email) if parsed.common.email else None
 
+    # S21 bug fix, found by the creation-authority matrix test:
+    # SUPERUSER is the one target role whose own profile (SuperuserProfile,
+    # S14) carries expires_at/hardware_mfa_required, but this INSERT never
+    # copied either into the actual users columns -- meaning creating a
+    # peer SUPERUSER via POST /users always violated chk_superuser_expires
+    # (expires_at stayed NULL) and silently produced hardware_mfa_required
+    # = false (its DB default) despite SS9.3's "Hardware key mandatory".
+    # Never caught before: every prior step's own testing exercised
+    # SUPERUSER as a *creator*, never as a *target* of this same route.
+    superuser_expires_at = profile_dict.get("expires_at") if target_role == "SUPERUSER" else None
+    hardware_mfa_required = target_role == "SUPERUSER"
+
     row = session.exec(text(
         "INSERT INTO users (role, role_level, full_name, full_name_local, mobile_encrypted, "
         "mobile_blind_index, mobile_masked, email_encrypted, email_blind_index, date_of_birth, sex, "
         "preferred_language, employee_code, designation, joining_date, id_proof_type, id_proof_last4, "
         "photo_object_key, scope_org_unit_id, scope_path, reports_to_user_id, created_by_user_id, "
-        "hpr_id, profile, status, mfa_required, valid_until) "
+        "hpr_id, profile, status, mfa_required, valid_until, expires_at, hardware_mfa_required) "
         "VALUES (:role, :lvl, :fn, :fnl, :menc, :mbi, :mmask, :eenc, :ebi, :dob, :sex, :lang, :ecode, "
         ":desig, :joining, :idpt, :idl4, :photo, :org, (SELECT path FROM org_units WHERE id=:org), "
-        ":rpt, :creator, :hpr, :profile, :status, :mfareq, :valid_until) RETURNING id, created_at"
+        ":rpt, :creator, :hpr, :profile, :status, :mfareq, :valid_until, :expires_at, :hwmfa) "
+        "RETURNING id, created_at"
     ), params={
         "role": target_role, "lvl": ROLE_LEVEL[RoleCode(target_role)], "fn": parsed.common.full_name,
         "fnl": parsed.common.full_name_local, "menc": encrypt_field(parsed.common.mobile), "mbi": mobile_bi,
@@ -405,6 +418,8 @@ def create_user(
         # login -- not just the bare minimum the DB CHECK requires.
         "mfareq": ROLE_LEVEL[RoleCode(target_role)] <= 6,
         "valid_until": parsed.posting.valid_until,
+        "expires_at": superuser_expires_at,
+        "hwmfa": hardware_mfa_required,
     }).first()
     new_id, created_at = row
 

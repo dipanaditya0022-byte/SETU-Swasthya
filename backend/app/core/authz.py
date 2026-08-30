@@ -72,6 +72,18 @@ WHAT IS VERBATIM VS ADAPTED VS NEW -- read before reviewing:
   this same function. Fixed by giving Gate 3 the same SUPERUSER
   exemption Gate 4 already had. Confirmed with the user directly before
   changing this security-critical, already-shipped module.
+
+- SECOND BUG FOUND AND FIXED (S21, discovered by the 361-case creation
+  matrix test itself): Gate 4's own same-level exemption only covered
+  `actor is SUPERUSER`, but role_creation_grants (S11's seed) has TWO
+  genuine dual-approval self-grants matching Day1.md SS3's own matrix
+  -- SUPERUSER->SUPERUSER and STATE_NHM->STATE_NHM. The narrower guard
+  correctly let the first through and wrongly rejected the second with
+  LEVEL_VIOLATION, even though Gate 2 had already confirmed a real,
+  explicit grant row sanctions exactly that pair. Generalised to
+  "actor's role equals the target's role" (which SUPERUSER->SUPERUSER
+  still satisfies, so no separate case is needed). Confirmed with the
+  user directly before this second change to the same function.
 """
 from __future__ import annotations
 
@@ -200,10 +212,25 @@ def assert_can_create_user(
             )
 
     # GATE 4 -- level sanity. Belt-and-braces against a bad grant row.
-    # SUPERUSER is the only role permitted to create at its own level.
+    #
+    # Same-role exemption -- found by testing (a real bug, not present
+    # before this fix, confirmed with the user before changing this
+    # function a second time this session): the original guard only
+    # exempted SUPERUSER from the same-or-above-level check. But
+    # role_creation_grants (S11's seed) has TWO genuine self-grants
+    # matching Day1.md SS3's own matrix, both dual-approval (✓✓):
+    # SUPERUSER->SUPERUSER and STATE_NHM->STATE_NHM. The original guard
+    # let the first pass and wrongly rejected the second with
+    # LEVEL_VIOLATION, even though Gate 2 (above) already confirmed a
+    # real, explicit grant row sanctions exactly that pair. Generalised
+    # from "actor is SUPERUSER" to "actor's role equals the target's
+    # role" -- which SUPERUSER->SUPERUSER already satisfies too, so no
+    # separate SUPERUSER case is needed any more. This cannot be used to
+    # bypass anything: Gate 2 has already proven a grant row exists for
+    # this exact (creator_role, target_role) pair before Gate 4 ever runs.
     target_role_enum = target_role if isinstance(target_role, RoleCode) else RoleCode(target_role)
     actor_role_enum = actor.role if isinstance(actor.role, RoleCode) else RoleCode(actor.role)
-    if actor_role_enum != RoleCode.SUPERUSER:
+    if actor_role_enum != target_role_enum:
         if ROLE_LEVEL[target_role_enum] <= ROLE_LEVEL[actor_role_enum]:
             raise CreationDenied(
                 "LEVEL_VIOLATION",

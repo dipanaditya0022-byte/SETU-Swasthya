@@ -12,6 +12,7 @@ ecdsa==0.19.2
 fastapi==0.141.1
 h11==0.16.0
 httptools==0.8.0
+httpx==0.28.1
 idna==3.19
 limits==5.8.0
 Mako==1.4.1
