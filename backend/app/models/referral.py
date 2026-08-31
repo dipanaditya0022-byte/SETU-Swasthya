@@ -106,3 +106,11 @@ class Referral(SQLModel, table=True):
     loss_reason: Optional[str] = Field(default=None, sa_column=Column("loss_reason", Text))
     cancellation_reason: Optional[str] = Field(default=None, sa_column=Column("cancellation_reason", Text))
     back_referral_note: Optional[str] = Field(default=None, sa_column=Column("back_referral_note", Text))
+
+    # Dashboard step: migration b9e4c7a2f815 added this nullable column.
+    # NEVER set by any route today -- `referral` has no `client_uuid`
+    # column to match an incoming sync batch record against (see that
+    # migration's own docstring "THE SYNC/synced_at GAP" and
+    # app/api/routes/sync.py's own module docstring). Stays NULL until a
+    # future, separate migration adds `client_uuid` here.
+    synced_at: Optional[datetime] = Field(default=None, sa_column=Column("synced_at", DateTime(timezone=True)))

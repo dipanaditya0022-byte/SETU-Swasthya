@@ -38,3 +38,11 @@ class TriageEncounter(SQLModel, table=True):
     missing_fields: list[str] = Field(default_factory=list, sa_column=Column("missing_fields", JSONB, nullable=False))
     engine: Optional[str] = Field(default=None, sa_column=Column("engine", Text))
     evaluated_at: Optional[datetime] = Field(default=None, sa_column=Column("evaluated_at", DateTime(timezone=True)))
+
+    # Dashboard step: migration b9e4c7a2f815 added this nullable column.
+    # NEVER set by any route today -- `triageencounter` has no
+    # `client_uuid` column to match an incoming sync batch record against
+    # (see that migration's own docstring "THE SYNC/synced_at GAP" and
+    # app/api/routes/sync.py's own module docstring). Stays NULL until a
+    # future, separate migration adds `client_uuid` here.
+    synced_at: Optional[datetime] = Field(default=None, sa_column=Column("synced_at", DateTime(timezone=True)))
