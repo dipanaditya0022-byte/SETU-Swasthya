@@ -66,6 +66,16 @@ Creates a triage encounter for a patient. Requires `Authorization:
 Bearer <access_token>` and the `triage:create` permission; the
 referenced patient must be within the actor's scope.
 
+`patient_id`/`facility_id`/`triage_disposition`/`referral_urgency` are
+the original, contract-frozen fields and their meaning is unchanged.
+As of the triage-decisioning step, the server also computes its own
+disposition (never the caller's) via a rule/fallback decision engine
+and returns it in the new, additive `decision` object below.
+`triage_disposition`/`referral_urgency` remain free-text/caller-supplied
+fields on the record for backward compatibility; they are NOT what the
+engine reads or writes, and are not treated as the encounter's actual
+disposition -- that is exclusively `decision.disposition`.
+
 ### Request
 
 ```json
@@ -73,13 +83,61 @@ referenced patient must be within the actor's scope.
   "patient_id": "b76d30d8-faa5-4fbb-b347-2e42dbb8218e",
   "facility_id": "00000000-0000-0000-0000-000000000001",
   "triage_disposition": "Manage here",
-  "referral_urgency": "routine"
+  "referral_urgency": "routine",
+  "protocol": "ANC",
+  "vitals": {"bp_systolic": 156, "bp_diastolic": 98},
+  "symptoms": ["severe_headache"],
+  "danger_signs": [],
+  "sex": "FEMALE",
+  "is_pregnant": true,
+  "gestational_weeks": 32,
+  "history": {}
 }
 ```
 
+`protocol`/`vitals`/`symptoms`/`danger_signs`/`sex`/`is_pregnant`/
+`gestational_weeks`/`history` are all new, optional, additive fields --
+a request with only the original four fields (as above the original
+example) still succeeds; `protocol` defaults to `"GENERAL"` when
+omitted. Any `disposition`/`urgency`/`reason`/`red_flags`/
+`protocol_version`/`insufficient_data`/`missing_fields`/`engine`/
+`evaluated_at` key sent by the client is accepted (never a 4xx) but
+always ignored -- the server never trusts a caller-supplied decision.
+
 ### Response
 
-Returns the created triage encounter with a generated `id` and `created_at`.
+Returns the created triage encounter with a generated `id` and
+`created_at`, plus (new, additive) a server-computed `decision` object:
+
+```json
+{
+  "id": "...",
+  "patient_id": "b76d30d8-faa5-4fbb-b347-2e42dbb8218e",
+  "facility_id": "00000000-0000-0000-0000-000000000001",
+  "triage_disposition": "Manage here",
+  "referral_urgency": "routine",
+  "created_at": "...",
+  "created_by_user_id": "...",
+  "org_unit_id": "...",
+  "decision": {
+    "disposition": "REFER",
+    "urgency": "WITHIN_24H",
+    "reason": "Blood pressure is high. A doctor needs to see this within the next day.",
+    "red_flags": ["HYPERTENSION"],
+    "protocol_version": "fallback-v1.0",
+    "insufficient_data": false,
+    "missing_fields": [],
+    "engine": "fallback",
+    "evaluated_at": "..."
+  }
+}
+```
+
+`decision.engine` is `"rule"` or `"fallback"`, naming which decision
+engine actually produced the result (app/services/triage/factory.py).
+Engine unavailable (rule engine forced via `TRIAGE_ENGINE=rule` and not
+ready) -> `503 {"code": "TRIAGE_ENGINE_UNAVAILABLE"}`. Unrecognised
+`protocol` -> `422 {"code": "INVALID_PROTOCOL"}`.
 
 ## POST /referrals/
 
