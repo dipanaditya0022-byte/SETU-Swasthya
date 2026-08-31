@@ -74,7 +74,7 @@ local to this function, purely for the two new 409 error bodies' own
 `request_id` field -- not wired into logging or any other cross-cutting
 concern, since none exists yet to hook into.
 """
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID, uuid4
 
@@ -85,6 +85,7 @@ from sqlmodel import Session, text
 from app.core.authz import org_unit_is_within_scope, require
 from app.db.database import get_session
 from app.models import Patient, Referral
+from app.services.referral.breach import compute_due_at
 from app.models.referral_state import (
     ALLOWED_TRANSITIONS,
     InvalidTransition,
@@ -172,6 +173,17 @@ def create_referral(
 
     referral.created_by_user_id = current_user.id
     referral.org_unit_id = current_user.scope_org_unit_id
+
+    # D2-S8: `due_at` was previously never set at creation (migration
+    # d4f1c9b7a582 only backfilled EXISTING rows' due_at as part of its
+    # own Phase 3; new rows created after that migration got due_at=NULL
+    # until now). Always server-computed from the shared breach rule
+    # (app/services/referral/breach.py) -- same reasoning as
+    # created_by_user_id/org_unit_id just above, never trusts a
+    # client-supplied due_at. Additive: no existing request/response
+    # field is touched, this only fills in a column that already exists
+    # and was already nullable.
+    referral.due_at = compute_due_at(referral.initiated_at, referral.urgency)
 
     session.add(referral)
     session.commit()
@@ -396,15 +408,17 @@ def _apply_transition(
     elif requested == ReferralState.CANCELLED:
         referral.cancellation_reason = body.cancellation_reason
     elif requested == ReferralState.RESCHEDULED:
-        # Same ROUTINE window as the migration's own Phase-3 backfill
-        # (`due_at = initiated_at + interval '7 days'`) -- checked first,
-        # per this task's own instruction: no urgency-keyed SLA window
-        # exists anywhere else in this codebase for referrals.
-        # app/schemas/profiles.py's sla_response_hours_routine/urgent
-        # fields belong to SpecialistProfile (teleconsult roster SLA),
-        # an unrelated concept, not a referral due-date policy.
+        # D2-S8: was a hardcoded `now + timedelta(days=7)` (a second,
+        # independent due-date calculation living outside the shared
+        # rule). Now calls the SAME compute_due_at used at referral
+        # creation (app/services/referral/breach.py) -- "ONE shared rule
+        # used by both the read path and a background job" extends here
+        # too: no route may independently recompute a due-date window.
+        # "restarts the clock from the reschedule time" -- `now` (the
+        # reschedule instant), not `referral.initiated_at` (the original
+        # creation instant), is the base passed in.
         referral.breached_at = None
-        referral.due_at = now + timedelta(days=7)
+        referral.due_at = compute_due_at(now, referral.urgency)
 
     return metadata
 
