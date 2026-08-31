@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Optional
 import uuid
 
+from sqlalchemy import Column, DateTime
 from sqlmodel import Field, SQLModel
 
 
@@ -24,3 +25,12 @@ class Patient(SQLModel, table=True):
     # client-supplied value for either (S20 report, "PART 1").
     created_by_user_id: Optional[uuid.UUID] = None
     org_unit_id: Optional[uuid.UUID] = None
+
+    # Dashboard step: migration b9e4c7a2f815 added this nullable column.
+    # Only app/api/routes/sync.py's POST /sync/ ever writes it (matching
+    # an accepted batch record's client_uuid against this row's own
+    # client_uuid); nothing else in this codebase sets it. See that
+    # migration's own docstring ("THE SYNC/synced_at GAP") and
+    # app/api/routes/dashboard.py's synced_today docstring for why
+    # `referral`/`triageencounter` cannot get the same real treatment yet.
+    synced_at: Optional[datetime] = Field(default=None, sa_column=Column("synced_at", DateTime(timezone=True)))

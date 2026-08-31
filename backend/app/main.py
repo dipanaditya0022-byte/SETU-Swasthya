@@ -35,3 +35,7 @@ app.include_router(users_router)
 from app.api.routes.governance import router as governance_router
 
 app.include_router(governance_router)
+
+from app.api.routes.dashboard import router as dashboard_router
+
+app.include_router(dashboard_router)

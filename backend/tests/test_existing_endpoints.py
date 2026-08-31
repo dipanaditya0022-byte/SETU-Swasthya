@@ -95,9 +95,21 @@ def test_triage_and_referral_and_status_update_flow(client, org_units, make_acto
     referral_id = referral_resp.json()["id"]
     assert referral_resp.json()["status"] == "INITIATED"
 
-    status_resp = client.patch(f"/referrals/{referral_id}/status?status=ACCEPTED", headers=auth_header(token))
-    assert status_resp.status_code == 200
-    assert status_resp.json()["status"] == "ACCEPTED"
+    # D2-S7: "ACCEPTED" was never one of the 13 canonical ReferralState
+    # values (app/models/referral_state.py) -- it predates the state
+    # machine and was never a real transition target, only ever a free
+    # string written into a column that had no type constraint at all
+    # until migration d4f1c9b7a582 gave `referral.status` a real Postgres
+    # enum. Updated to NOT_ARRIVED, a real transition legal from
+    # INITIATED (ALLOWED_TRANSITIONS) that requires no extra body fields
+    # (TRANSITION_REQUIRED_FIELDS[NOT_ARRIVED] == []), so this flow test
+    # keeps its original shape/intent (create -> triage -> refer -> move
+    # status) without depending on the state machine's per-transition
+    # required-field rules, which get their own dedicated coverage
+    # elsewhere.
+    status_resp = client.patch(f"/referrals/{referral_id}/status?status=NOT_ARRIVED", headers=auth_header(token))
+    assert status_resp.status_code == 200, status_resp.text
+    assert status_resp.json()["status"] == "NOT_ARRIVED"
 
 
 def test_sync_requires_auth_and_validates_scope(client, org_units, org_units_b, make_actor):
