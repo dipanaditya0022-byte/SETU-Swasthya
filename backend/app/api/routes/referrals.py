@@ -74,20 +74,25 @@ local to this function, purely for the two new 409 error bodies' own
 `request_id` field -- not wired into logging or any other cross-cutting
 concern, since none exists yet to hook into.
 """
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from uuid import UUID, uuid4
 
+import sqlalchemy as sa
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict
-from sqlmodel import Session, text
+from sqlmodel import Session, select, text
 
 from app.core.authz import org_unit_is_within_scope, require
 from app.db.database import get_session
 from app.models import Patient, Referral
-from app.services.referral.breach import compute_due_at
+from app.services.escalation.factory import get_escalation_engine
+from app.services.escalation.fallback import resolve_escalation_target
+from app.services.escalation.port import EscalationInput
+from app.services.referral.breach import compute_due_at, is_breached, normalize_urgency
 from app.models.referral_state import (
     ALLOWED_TRANSITIONS,
+    COMPLETED_STATES,
     InvalidTransition,
     ReferralState,
     RefusalReason,
@@ -511,3 +516,430 @@ def update_referral_status(
     response = referral.model_dump()
     response["allowed_next"] = _ordered_values(ALLOWED_TRANSITIONS.get(requested_status, set()))
     return response
+
+
+# ===========================================================================
+# GET /referrals/exceptions -- new, additive (C1: does not touch any of the
+# nine frozen endpoints or POST // PATCH .../status above). require(
+# "referral:read"), always scope-filtered.
+#
+# THIS ROUTE'S OWN GAPS/DECISIONS -- every one flagged per this task's own
+# instruction ("investigate and handle explicitly, don't silently guess"),
+# not buried in a commit message:
+#
+# 1. Patient.sex: app/models/patient.py has NO `sex` column at all (checked
+#    directly, not assumed -- the model has id/name/age/village/phone/
+#    facility_id/created_at/client_uuid/created_by_user_id/org_unit_id and
+#    nothing else). `patient.sex` in the response is therefore always
+#    `null`, not invented data and not a crash.
+#
+# 2. `age_years`: the only age data that exists is `Patient.age` (a bare
+#    int, no unit ever recorded beyond "age" itself). Mapped straight across
+#    as `age_years` -- a field-name reconciliation, not a new value.
+#
+# 3. `from_facility_id`/`destination_facility_id` carry NO foreign key to
+#    org_units (checked directly against every referral migration -- see
+#    79a9d8f8db61's original `CREATE TABLE referral` and d4f1c9b7a582's own
+#    docstring, neither adds one). They are free-standing UUIDs; the test
+#    fixtures in this very repo (tests/test_breach_detection.py's own
+#    `_make_referral`) populate them with plain `uuid.uuid4()` values that
+#    reference nothing at all. Best-effort lookup, documented, not a crash:
+#    try `org_units` first (id -> name), then fall back to the pre-existing
+#    `facility` table (id -> name) for whatever isn't found there, then
+#    `name: null` for anything found in neither. `origin_org_unit`/
+#    `destination_org_unit` are named per this task's own spec even though
+#    the underlying id may resolve to a `facility` row, not an `org_units`
+#    row -- the spec's field names are kept, the lookup is just honest
+#    about where the name actually came from (or that it couldn't be found).
+#
+# 4. `scope=mine` is not defined anywhere in Day1.md (which has no
+#    escalation-dashboard spec at all) or in this task's own text beyond
+#    "pick the most defensible reading". Resolved as: referrals whose
+#    `owner_user_id` equals the caller's own id. This is ADDITIONAL
+#    narrowing on top of -- never a replacement for -- the mandatory
+#    "always filter to caller's own org subtree" baseline: a referral
+#    reassigned away from the caller's own scope (e.g. after a transfer)
+#    never leaks back in just because `owner_user_id` still matches.
+#
+# 5. `scope=facility` vs `scope=block`: also not literally defined.
+#    Resolved using this repo's own org-unit hierarchy (STATE > DISTRICT >
+#    DISTRICT_OFFICE > BLOCK > {PHC/CHC/HWC/SDH/DISTRICT_HOSPITAL/
+#    TELE_HUB} > SUB_CENTRE > VILLAGE -- see tests/_fixtures.py's own
+#    hierarchy docstring): `scope=block` (the default) is the caller's
+#    FULL subtree (everything at or below their own posting -- the
+#    baseline scope-containment rule with nothing extra narrowed);
+#    `scope=facility` narrows to an EXACT match on the caller's own
+#    posting only, no descendants (e.g. a BMO posted at a BLOCK sees only
+#    referrals attributed to that exact BLOCK org_unit_id, not the PHCs
+#    under it). If `org_unit_id` is also supplied, it takes precedence
+#    over `scope`'s own org-unit narrowing (see point 6); `scope=mine`
+#    still composes on top of either.
+#
+# 6. `org_unit_id` (drill-down): validated with the same
+#    `org_unit_is_within_scope` gate used everywhere else in this codebase
+#    -- out of scope -> 404 FACILITY_NOT_IN_SCOPE, never 403 (an attacker
+#    probing facility ids must not be able to tell "exists elsewhere" from
+#    "doesn't exist" -- app.core.authz's own module docstring). When
+#    supplied, it REPLACES `scope`'s own org-unit dimension (filtering to
+#    that target unit's own subtree, not the caller's whole one) --
+#    `scope=mine` still applies on top if also given.
+#
+# 7. `stage` filters against the LIVE, per-request escalation output's own
+#    `.stage` -- the exact same value returned in each item's
+#    `escalation.stage` field -- not the persisted `referral.
+#    escalation_stage` DB column (which is the background job's last-known
+#    snapshot, not necessarily equal to what the engine would say about
+#    the current instant `now`). "What you can filter on is what you see
+#    in the response" was picked as the more defensible reading; flagged
+#    here since the query param name doesn't itself say which one.
+#
+# 8. `summary` (breached/at_risk/total_open/breach_rate) is computed over
+#    the SCOPE + org_unit_id + urgency-filtered set of open referrals --
+#    i.e. before `breach_only`/`stage` narrow the exceptions view further.
+#    `urgency` genuinely changes "the universe under consideration" (a
+#    manager filtering to EMERGENCY-only wants the rate computed over
+#    EMERGENCY referrals only); `breach_only`/`stage` are drill-downs on
+#    an already-defined universe, and letting them shrink the denominator
+#    too would make e.g. `breach_only=true` trivially report a 100% rate
+#    every time, which is not a useful number.
+#
+# 9. Sort is server-fixed (a `sort` query param is accepted for
+#    forward-compatibility but always ignored -- documented, not silently
+#    dropped): EMERGENCY urgency first, then `overdue_hours` descending
+#    (0.0 for anything not yet breached, so already-breached rows always
+#    sort ahead of not-yet-breached ones within the same urgency tier).
+#    THIS TASK'S OWN INSTRUCTION to "pick and document a sensible
+#    secondary order for not-yet-breached rows" is resolved as: among rows
+#    tied at `overdue_hours == 0.0`, break the tie by `due_at` ASCENDING
+#    (the referral closest to breaching is shown first) -- this is this
+#    route's own choice, not given verbatim anywhere.
+#
+# 10. Scope containment is always computed from a FRESH `org_units.path`
+#     lookup (never from the possibly-stale `users.scope_path` cache
+#     column), matching `org_unit_is_within_scope`'s own "always re-check
+#     against the live table" philosophy.
+#
+# 11. An actor with NO posting at all (`current_user.scope_org_unit_id IS
+#     NULL` -- true for every SUPERUSER, per `chk_scope_required`) is not
+#     given special treatment here the way Gate 3/Gate 4 give SUPERUSER an
+#     explicit creation-time exemption (app.core.authz). Day1.md does not
+#     define what a scoped EXCEPTIONS LIST should show a SUPERUSER, and
+#     `org_unit_is_within_scope` itself fails closed to False for a None
+#     actor scope. Resolved here, fail-closed (C3): no posting -> an empty
+#     result (`items: []`, all summary counts 0) for the base list, and a
+#     404 FACILITY_NOT_IN_SCOPE for ANY `org_unit_id` drill-down (since
+#     `org_unit_is_within_scope` can never return True for a None actor
+#     scope either). This never crashes and never silently shows
+#     everything; flagged here as a genuine product decision for the human
+#     to confirm, not a guess buried in code.
+#
+# 12. A referral with `due_at IS NULL` (should not occur for any row
+#     created after D2-S8, but older/malformed data is handled, not
+#     trusted to be clean) is counted in `total_open`, is never breached
+#     and never at_risk (both require a real `due_at`), and gets a
+#     documented no-op escalation object ("cannot be evaluated") instead
+#     of calling the engine with a missing required field.
+#
+# 13. `at_risk` with a malformed window (`due_at <= initiated_at`) is
+#     treated as NOT at-risk rather than raising a ZeroDivision/negative-
+#     window error or guessing a fallback percentage -- there is nothing
+#     sensible to compute a "25% of window" against.
+#
+# 14. `breached_at` in each item is the PERSISTED `referral.breached_at`
+#     column -- the background job's (app/jobs/breach_detection.py) own
+#     snapshot of when it first detected the breach -- not something this
+#     route stamps itself. This route's own "is this row breached right
+#     now" decision (used for `breach_only`, `summary.breached`, and sort
+#     order) is the LIVE `is_breached()` call, exactly like the job's own
+#     "single source of truth" rule (app/services/referral/breach.py's own
+#     docstring). The two can legitimately disagree for a short window:
+#     a referral can satisfy `is_breached()` right now and still show
+#     `breached_at: null` here if the background job simply hasn't run
+#     since it crossed its `due_at` yet. This route deliberately does NOT
+#     write `breached_at` itself -- doing so would give this read-only
+#     route a second, competing writer for a column app/jobs/
+#     breach_detection.py already owns exclusively. `overdue_hours > 0`
+#     (not `breached_at IS NOT NULL`) is the reliable per-item signal that
+#     a row is currently breached by this route's own reckoning.
+# ===========================================================================
+
+def _org_unit_path(session: Session, org_unit_id: Optional[UUID]) -> Optional[str]:
+    if org_unit_id is None:
+        return None
+    row = session.exec(
+        text("SELECT path FROM org_units WHERE id = :id"), params={"id": str(org_unit_id)}
+    ).first()
+    return row[0] if row else None
+
+
+def _overdue_hours(referral: Referral, now: datetime) -> float:
+    if referral.due_at is None:
+        return 0.0
+    delta_hours = (now - referral.due_at).total_seconds() / 3600.0
+    return round(max(0.0, delta_hours), 1)
+
+
+def _is_at_risk(referral: Referral, breached: bool, now: datetime) -> bool:
+    """Open, not breached, time-remaining <= 25% of window (window =
+    due_at - initiated_at). See point 13 above for the malformed-window
+    fallback."""
+    if breached or referral.due_at is None:
+        return False
+    window = referral.due_at - referral.initiated_at
+    if window <= timedelta(0):
+        return False
+    remaining = referral.due_at - now
+    return remaining <= (window * 0.25)
+
+
+@router.get("/exceptions")
+def list_referral_exceptions(
+    scope: str = Query(default="block", pattern="^(block|facility|mine)$"),
+    urgency: Optional[str] = Query(default=None, description="Comma-separated, e.g. EMERGENCY,URGENT"),
+    stage: Optional[str] = Query(default=None, description="Comma-separated integers, e.g. 1,2,3"),
+    breach_only: bool = Query(default=False),
+    org_unit_id: Optional[UUID] = Query(default=None),
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+    sort: Optional[str] = Query(default=None, description="Accepted but always ignored -- see route docstring point 9."),
+    current_user=Depends(require("referral:read")),
+    session: Session = Depends(get_session),
+):
+    now = datetime.now(timezone.utc)
+
+    # ---- STEP 1: resolve the caller's own current scope path. Point 11. ----
+    actor_path = _org_unit_path(session, current_user.scope_org_unit_id)
+    if current_user.scope_org_unit_id is None or actor_path is None:
+        empty_summary = {
+            "breached": 0, "at_risk": 0, "total_open": 0,
+            "breach_rate": {"numerator": 0, "denominator": 0, "rate_pct": 0.0},
+        }
+        return {"summary": empty_summary, "items": [],
+                "pagination": {"limit": limit, "offset": offset, "total": 0}}
+
+    # ---- STEP 2: org_unit_id drill-down -- validate scope, 404 not 403. ----
+    # Point 6.
+    effective_path = actor_path
+    if org_unit_id is not None:
+        if not org_unit_is_within_scope(session, org_unit_id, current_user.scope_org_unit_id):
+            raise HTTPException(404, {"code": "FACILITY_NOT_IN_SCOPE", "detail": "Not found."})
+        target_path = _org_unit_path(session, org_unit_id)
+        # org_unit_is_within_scope already proved this org unit exists and
+        # is reachable, so target_path cannot be None here.
+        effective_path = target_path
+
+    path_prefix = effective_path.rstrip("/") + "/%"
+
+    # ---- STEP 3: base query -- open referrals, joined to org_units for
+    # the path-prefix scope check (mirrors org_unit_is_within_scope's own
+    # trailing-slash-safe logic, at the SQL level so this is one query,
+    # not one org_unit_is_within_scope() call per row). Point 10. ----
+    org_units_tbl = sa.table("org_units", sa.column("id"), sa.column("path"))
+    non_open_statuses = list(COMPLETED_STATES) + [ReferralState.CANCELLED]
+
+    stmt = (
+        select(Referral)
+        .join(org_units_tbl, org_units_tbl.c.id == Referral.org_unit_id)
+        .where(Referral.status.not_in(non_open_statuses))
+        .where(sa.or_(org_units_tbl.c.path == effective_path, org_units_tbl.c.path.like(path_prefix)))
+    )
+
+    # scope=facility: exact match on the caller's own posting only, no
+    # descendants -- only meaningful when org_unit_id hasn't already
+    # pinned a different (narrower or equal) target. Point 5.
+    if scope == "facility" and org_unit_id is None:
+        stmt = stmt.where(Referral.org_unit_id == current_user.scope_org_unit_id)
+
+    # scope=mine: additional narrowing, composes with everything above.
+    # Point 4.
+    if scope == "mine":
+        stmt = stmt.where(Referral.owner_user_id == current_user.id)
+
+    if urgency:
+        wanted_urgencies = {normalize_urgency(u) for u in urgency.split(",") if u.strip()}
+        if wanted_urgencies:
+            stmt = stmt.where(sa.func.upper(sa.func.trim(Referral.urgency)).in_(wanted_urgencies))
+
+    stage_filter: Optional[set[int]] = None
+    if stage:
+        try:
+            stage_filter = {int(s) for s in stage.split(",") if s.strip() != ""}
+        except ValueError:
+            raise HTTPException(422, {"code": "INVALID_STAGE",
+                                       "detail": "stage must be a comma-separated list of integers."})
+
+    candidates = session.exec(stmt).all()
+
+    # ---- STEP 4: batch-fetch related rows -- no per-row queries. ----
+    patient_ids = {r.patient_id for r in candidates}
+    owner_ids = {r.owner_user_id for r in candidates if r.owner_user_id is not None}
+    facility_ids: set = set()
+    for r in candidates:
+        facility_ids.add(r.from_facility_id)
+        facility_ids.add(r.destination_facility_id)
+
+    patients_by_id: dict = {}
+    if patient_ids:
+        for p in session.exec(select(Patient).where(Patient.id.in_(patient_ids))).all():
+            patients_by_id[p.id] = p
+
+    users_tbl = sa.table("users", sa.column("id"), sa.column("full_name"), sa.column("role"))
+    owners_by_id: dict = {}
+    if owner_ids:
+        rows = session.exec(
+            select(users_tbl.c.id, users_tbl.c.full_name, users_tbl.c.role)
+            .where(users_tbl.c.id.in_(owner_ids))
+        ).all()
+        for row_id, row_name, row_role in rows:
+            owners_by_id[row_id] = {"user_id": str(row_id), "name": row_name, "role": row_role}
+
+    # Point 3: best-effort org_units -> facility fallback lookup.
+    org_units_lookup_tbl = sa.table("org_units", sa.column("id"), sa.column("name"))
+    facility_lookup_tbl = sa.table("facility", sa.column("id"), sa.column("name"))
+    facility_names: dict = {}
+    if facility_ids:
+        rows = session.exec(
+            select(org_units_lookup_tbl.c.id, org_units_lookup_tbl.c.name)
+            .where(org_units_lookup_tbl.c.id.in_(facility_ids))
+        ).all()
+        for row_id, row_name in rows:
+            facility_names[row_id] = row_name
+        remaining = facility_ids - set(facility_names.keys())
+        if remaining:
+            rows2 = session.exec(
+                select(facility_lookup_tbl.c.id, facility_lookup_tbl.c.name)
+                .where(facility_lookup_tbl.c.id.in_(remaining))
+            ).all()
+            for row_id, row_name in rows2:
+                facility_names[row_id] = row_name
+
+    # ---- STEP 5: per-candidate breach/at-risk (pure, no DB) + summary. ----
+    enriched = []
+    for r in candidates:
+        breached = is_breached(r, now)
+        at_risk = _is_at_risk(r, breached, now)
+        enriched.append({
+            "referral": r, "breached": breached, "at_risk": at_risk,
+            "overdue_hours": _overdue_hours(r, now),
+        })
+
+    total_open = len(enriched)
+    breached_count = sum(1 for e in enriched if e["breached"])
+    at_risk_count = sum(1 for e in enriched if e["at_risk"])
+    rate_pct = round((breached_count / total_open) * 100, 1) if total_open else 0.0
+    summary = {
+        "breached": breached_count, "at_risk": at_risk_count, "total_open": total_open,
+        "breach_rate": {"numerator": breached_count, "denominator": total_open, "rate_pct": rate_pct},
+    }
+
+    if breach_only:
+        enriched = [e for e in enriched if e["breached"]]
+
+    # ---- STEP 6: escalation engine, wired via the port/factory seam.
+    # Point 7: resolve_escalation_target is called HERE (a real session),
+    # never inside the fallback engine itself -- that's the whole point of
+    # wiring it in at the route. ----
+    engine = get_escalation_engine()
+    resolve_cache: dict = {}
+
+    def _compute_escalation(referral: Referral) -> dict:
+        if referral.due_at is None:
+            return {
+                "stage": 0, "escalate_to_role": None, "escalate_to_user_id": None,
+                "due_action_at": None,
+                "message": "No due_at is set for this referral; escalation cannot be evaluated.",
+                "engine": engine.name,
+            }
+        status_value = referral.status.value if isinstance(referral.status, ReferralState) else referral.status
+        out = engine.escalate(EscalationInput(
+            urgency=referral.urgency, initiated_at=referral.initiated_at, due_at=referral.due_at,
+            now=now, current_stage=referral.escalation_stage, owner_user_id=referral.owner_user_id,
+            status=status_value,
+        ))
+        escalate_to_user_id = out.escalate_to_user_id
+        if out.escalate_to_role and escalate_to_user_id is None:
+            cache_key = (referral.owner_user_id, out.escalate_to_role)
+            if cache_key not in resolve_cache:
+                resolve_cache[cache_key] = resolve_escalation_target(
+                    session, referral.owner_user_id, out.escalate_to_role
+                )
+            escalate_to_user_id = resolve_cache[cache_key]
+        return {
+            "stage": out.stage, "escalate_to_role": out.escalate_to_role,
+            "escalate_to_user_id": str(escalate_to_user_id) if escalate_to_user_id else None,
+            "due_action_at": out.due_action_at.isoformat() if out.due_action_at else None,
+            "message": out.message, "engine": out.engine,
+        }
+
+    # stage filtering needs the live escalation stage BEFORE pagination,
+    # so it must be computed eagerly for the whole (already breach_only-
+    # filtered) candidate set in that case. Otherwise it's deferred to
+    # just the final page (point 7 + avoiding unnecessary
+    # resolve_escalation_target DB walks for rows that won't be returned).
+    if stage_filter is not None:
+        for e in enriched:
+            e["escalation"] = _compute_escalation(e["referral"])
+        enriched = [e for e in enriched if e["escalation"]["stage"] in stage_filter]
+
+    # ---- STEP 7: sort (server-fixed, point 9) -- client `sort` ignored. ----
+    def _sort_key(e: dict):
+        urgency_norm = normalize_urgency(e["referral"].urgency)
+        emergency_first = 0 if urgency_norm == "EMERGENCY" else 1
+        due_at = e["referral"].due_at or datetime.max.replace(tzinfo=timezone.utc)
+        return (emergency_first, -e["overdue_hours"], due_at)
+
+    enriched.sort(key=_sort_key)
+
+    total = len(enriched)
+    page = enriched[offset: offset + limit]
+
+    for e in page:
+        if "escalation" not in e:
+            e["escalation"] = _compute_escalation(e["referral"])
+
+    # ---- STEP 8: build the response. ----
+    items = []
+    for e in page:
+        r = e["referral"]
+        patient = patients_by_id.get(r.patient_id)
+        owner = owners_by_id.get(r.owner_user_id) if r.owner_user_id else None
+        current_status = r.status if isinstance(r.status, ReferralState) else ReferralState(r.status)
+        items.append({
+            "referral_id": str(r.id),
+            "patient": {
+                "id": str(patient.id) if patient else str(r.patient_id),
+                "name": patient.name if patient else None,
+                "age_years": patient.age if patient else None,  # point 2
+                "sex": None,  # point 1 -- Patient has no `sex` column
+            },
+            "reason": r.reason,
+            "urgency": r.urgency,
+            "status": current_status.value,
+            "allowed_next": _ordered_values(ALLOWED_TRANSITIONS.get(current_status, set())),
+            "origin_org_unit": {"id": str(r.from_facility_id), "name": facility_names.get(r.from_facility_id)},
+            "destination_org_unit": {
+                "id": str(r.destination_facility_id), "name": facility_names.get(r.destination_facility_id),
+            },
+            "initiated_at": r.initiated_at.isoformat() if r.initiated_at else None,
+            "due_at": r.due_at.isoformat() if r.due_at else None,
+            "breached_at": r.breached_at.isoformat() if r.breached_at else None,
+            "overdue_hours": e["overdue_hours"],
+            "escalation": e["escalation"],
+            "owner": owner,
+            "needs_owner": r.owner_user_id is None,
+        })
+
+    _write_audit(
+        session, actor_user_id=str(current_user.id), action="REFERRAL_EXCEPTIONS_READ", outcome="SUCCESS",
+        target_type="REFERRAL", target_id=None,
+        metadata={"scope": scope, "org_unit_id": str(org_unit_id) if org_unit_id else None,
+                  "urgency": urgency, "stage": stage, "breach_only": breach_only,
+                  "returned": len(items), "total": total},
+    )
+    session.commit()
+
+    return {
+        "summary": summary,
+        "items": items,
+        "pagination": {"limit": limit, "offset": offset, "total": total},
+    }
