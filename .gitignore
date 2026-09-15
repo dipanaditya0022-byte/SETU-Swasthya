@@ -10,6 +10,9 @@ env/
 .env.*
 !.env.example
 
+# Secrets (RS256 key pairs, KMS-adjacent material — never commit)
+secrets/
+
 # macOS
 .DS_Store
 
@@ -21,3 +24,8 @@ env/
 *.log
 
 .claude/*
+.continue/*
+backend/.venv
+
+# Day 2 API verification captures (README + example JSON, local reference only)
+backend/testing/

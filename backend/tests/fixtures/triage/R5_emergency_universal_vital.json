@@ -1,0 +1,17 @@
+{
+  "name": "R5_EMERGENCY_UNIVERSAL_VITAL",
+  "description": "protocol=NCD, but the emergency signal is spo2 < 90, which the fallback engine's universal-emergency check (app/services/triage/fallback.py::_universal_emergency) evaluates BEFORE any protocol-specific rule, for every protocol. This case exists to prove that ordering: if it ever returns MANAGE_HERE, the universal check stopped running first and rule ordering is broken. Illustrative threshold, NOT validated clinical protocol.",
+  "input": {
+    "protocol": "NCD",
+    "vitals": {
+      "spo2": 86,
+      "bp_systolic": 130,
+      "bp_diastolic": 84
+    },
+    "danger_signs": []
+  },
+  "expect": {
+    "disposition": "EMERGENCY",
+    "urgency": "IMMEDIATE"
+  }
+}

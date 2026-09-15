@@ -1,0 +1,16 @@
+{
+  "name": "R2_BORDERLINE_ANC",
+  "description": "Blood pressure crosses the ANC hypertension threshold (bp_systolic >= 140 or bp_diastolic >= 90) but not the severe-hypertension emergency threshold. Illustrative threshold, NOT validated clinical protocol.",
+  "input": {
+    "protocol": "ANC",
+    "vitals": {
+      "bp_systolic": 142,
+      "bp_diastolic": 92
+    },
+    "danger_signs": []
+  },
+  "expect": {
+    "disposition": "REFER",
+    "urgency": "WITHIN_24H"
+  }
+}

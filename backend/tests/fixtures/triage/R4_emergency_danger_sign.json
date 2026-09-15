@@ -1,0 +1,16 @@
+{
+  "name": "R4_EMERGENCY_DANGER_SIGN",
+  "description": "Vitals alone would not trigger an emergency, but a reported danger sign (convulsions) does, via the ANC protocol's own danger-sign rule. Proves danger signs override normal-looking vitals. Illustrative threshold, NOT validated clinical protocol.",
+  "input": {
+    "protocol": "ANC",
+    "vitals": {
+      "bp_systolic": 130,
+      "bp_diastolic": 84
+    },
+    "danger_signs": ["convulsions"]
+  },
+  "expect": {
+    "disposition": "EMERGENCY",
+    "urgency": "IMMEDIATE"
+  }
+}

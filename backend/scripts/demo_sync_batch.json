@@ -1,0 +1,26 @@
+[
+  {
+    "client_uuid": "demo-sync-0001",
+    "name": "Vikram Chauhan",
+    "age": 34,
+    "village": "North Village",
+    "phone": "+919000000013",
+    "facility_id": "00000000-0000-0000-0001-000000000005"
+  },
+  {
+    "client_uuid": "demo-sync-0002",
+    "name": "Lakshmi Naidu",
+    "age": 29,
+    "village": "South Village",
+    "phone": "+919000000014",
+    "facility_id": "00000000-0000-0000-0001-000000000006"
+  },
+  {
+    "client_uuid": "demo-sync-0003",
+    "name": "Om Prakash",
+    "age": 47,
+    "village": "North Village",
+    "phone": "+919000000015",
+    "facility_id": "00000000-0000-0000-0001-000000000005"
+  }
+]

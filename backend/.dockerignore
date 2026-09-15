@@ -3,3 +3,11 @@
 __pycache__
 *.pyc
 .env
+# Deployment-hardening task finding: this file did NOT exclude secrets/
+# before -- `COPY . .` in the Dockerfile would bake the RS256 JWT private
+# key directly into the image's filesystem layer. .gitignore already
+# excludes secrets/ from source control; .dockerignore did not exclude
+# it from the BUILD CONTEXT, a separate mechanism. Real secrets must come
+# from the platform secret store at deploy time (mounted or injected),
+# never baked into the image.
+secrets/

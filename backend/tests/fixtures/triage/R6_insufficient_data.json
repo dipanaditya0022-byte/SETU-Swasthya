@@ -1,0 +1,15 @@
+{
+  "name": "R6_INSUFFICIENT_DATA",
+  "description": "No vitals supplied at all for the ANC protocol, which requires bp_systolic/bp_diastolic to safely conclude MANAGE_HERE (app/services/triage/fallback.py::_REQUIRED_VITALS). The engine's own safety rule (_escalate_if_insufficient) must override an otherwise-MANAGE_HERE result to REFER when required data is missing -- missing data is a CLINICAL situation, not a client error, and must never silently read as 'nothing wrong'. This is the single most important assertion in this fixture set: disposition must NOT be MANAGE_HERE. Illustrative threshold, NOT validated clinical protocol.",
+  "input": {
+    "protocol": "ANC",
+    "vitals": {},
+    "danger_signs": []
+  },
+  "expect": {
+    "disposition": "REFER",
+    "urgency": "WITHIN_24H",
+    "insufficient_data": true,
+    "missing_fields_contains": "bp_systolic"
+  }
+}
