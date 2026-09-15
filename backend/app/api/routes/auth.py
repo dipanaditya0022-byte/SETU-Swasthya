@@ -99,12 +99,14 @@ from typing import Any, Literal, Optional
 from uuid import UUID
 
 import pyotp
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from jose import JWTError, jwt as jose_jwt
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from sqlmodel import Session, text
 
 from app.core.authz import get_current_active_user
+from app.core.rate_limit import limiter, mobile_key
+from slowapi.util import get_remote_address
 from app.core.crypto import blind_index, decrypt_field, encrypt_field, mask_mobile
 from app.core.password import hash_password, validate_password_policy, verify_password
 from app.core.tokens import (
@@ -401,7 +403,9 @@ class PasswordChangeRequest(BaseModel):
 # ============================================================
 
 @router.post("/auth/otp/request")
-def otp_request(body: OtpRequestBody, session: Session = Depends(get_session)):
+@limiter.limit("5/hour", key_func=mobile_key)
+@limiter.limit("20/hour", key_func=get_remote_address)
+def otp_request(request: Request, response: Response, body: OtpRequestBody, session: Session = Depends(get_session)):
     """SS19.2 T1's own shape, verbatim: 200 {"otp_sent": true, "expires_in": 300}."""
     mobile_bi = blind_index(body.mobile)
     otp = _generate_otp()
@@ -477,7 +481,8 @@ def _consume_otp_token(session: Session, mobile: str, otp_token: str) -> None:
 
 
 @router.post("/auth/patient/register", status_code=201)
-def patient_register(body: PatientRegistrationRequest, session: Session = Depends(get_session)):
+@limiter.limit("3/hour", key_func=mobile_key)
+def patient_register(request: Request, response: Response, body: PatientRegistrationRequest, session: Session = Depends(get_session)):
     """SS5.4 PATIENT + SS19.2 T1/T2: OTP-verified mobile mandatory,
     created_by_user_id NULL, all-four-consents-false still succeeds
     (no code path here even checks the consent values before
@@ -529,11 +534,26 @@ def patient_register(body: PatientRegistrationRequest, session: Session = Depend
     return {"id": str(patient_id), "status": "ACTIVE", "created_by_user_id": None, "mobile_masked": mask_mobile(body.mobile)}
 
 
-@router.post("/auth/login")
-def login(body: LoginRequest, session: Session = Depends(get_session)):
+def _login_impl(body: LoginRequest, session: Session):
     """SS10.5's uniform-error/timing-normalisation rules: identical body
     for unknown mobile, wrong password, and suspended account; always
-    runs a real or dummy Argon2 verify either way."""
+    runs a real or dummy Argon2 verify either way.
+
+    Deployment-hardening task: this used to be `login()` itself, called
+    DIRECTLY (a plain Python call, not through FastAPI routing) by
+    `login_alias` below (the `/login` permanent-alias route, S16). Once
+    `login()` gained its own `@limiter.limit(...)` decorator, that direct
+    call would have ALSO triggered login's own rate-limit check as a side
+    effect of calling a decorated function -- meaning a single request to
+    `/login` would silently consume budget from `/auth/login`'s own
+    rate-limit bucket too (slowapi scopes buckets by `{module}.{funcname}`,
+    so these would NOT have been the same counter as `/login`'s own,
+    making this a real, if quiet, correctness bug -- an unrelated route's
+    limit getting exhausted by traffic to a DIFFERENT route). Extracted
+    into this undecorated helper so `login()` and `login_alias()` below
+    can each carry their OWN independent rate-limit decorator and call
+    this shared implementation without cross-triggering each other's
+    checks."""
     identifier_bi = blind_index(body.mobile) if body.mobile else (blind_index(body.email) if body.email else None)
     if identifier_bi is None:
         raise HTTPException(422, {"code": "IDENTIFIER_REQUIRED", "detail": "mobile or email is required."})
@@ -613,6 +633,12 @@ def login(body: LoginRequest, session: Session = Depends(get_session)):
     result = _issue_session_tokens(session, user_row=row, amr=amr, device_fingerprint=body.device_fingerprint,
                                     device_label=body.device_label)
     return result
+
+
+@router.post("/auth/login")
+@limiter.limit("20/15minutes", key_func=get_remote_address)
+def login(request: Request, response: Response, body: LoginRequest, session: Session = Depends(get_session)):
+    return _login_impl(body, session)
 
 
 @router.post("/auth/mfa/verify")
@@ -952,8 +978,9 @@ def revoke_session(session_id: UUID, current_user=Depends(get_current_active_use
 # ============================================================
 
 @router.post("/login")
-def login_alias(body: LoginRequest, session: Session = Depends(get_session)):
-    return login(body, session)
+@limiter.limit("20/15minutes", key_func=get_remote_address)
+def login_alias(request: Request, response: Response, body: LoginRequest, session: Session = Depends(get_session)):
+    return _login_impl(body, session)
 
 
 @router.get("/me")

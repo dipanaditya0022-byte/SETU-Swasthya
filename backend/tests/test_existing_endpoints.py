@@ -14,9 +14,22 @@ from tests._fixtures import auth_header
 
 
 def test_health_is_public(client):
+    # Deployment-hardening task: /health was deepened from a bare
+    # {"status": "ok"} to a real build/environment fingerprint (version,
+    # commit, migration_head, database, triage_engine, escalation_engine,
+    # time) -- additive per that task's own spec, so this test now checks
+    # the required KEYS and the "no PHI/counts/names/connection strings"
+    # constraint rather than exact-matching the old, now-stale body.
     r = client.get("/health")
     assert r.status_code == 200
-    assert r.json() == {"status": "ok"}
+    body = r.json()
+    assert body["status"] == "ok"
+    for key in ("version", "commit", "migration_head", "database",
+                "triage_engine", "escalation_engine", "time"):
+        assert key in body, f"/health missing required key {key!r}"
+    assert body["database"] == "ok"
+    # Still public -- no Authorization header was sent above and this
+    # still succeeded, which is the whole point of this test's own name.
 
 
 def test_post_patients_requires_auth(client):
@@ -69,8 +82,14 @@ def test_get_patient_out_of_scope_and_missing_both_404(client, db, org_units, or
 
     r1 = client.get(f"/patients/{oos_id}", headers=auth_header(token))
     r2 = client.get(f"/patients/{uuid.uuid4()}", headers=auth_header(token))
-    assert r1.status_code == 404 and r1.json()["detail"] == "Patient not found"
-    assert r2.status_code == 404 and r2.json()["detail"] == "Patient not found"
+    # Additive (validation-matrix task): the 404 body gained a `code`
+    # field (`NOT_FOUND`) alongside its existing message -- same
+    # dict-under-"detail" convention every other hand-written error in
+    # this codebase already uses (e.g. PHONE_REQUIRED just below this
+    # test's own siblings). Status code and the "same shape for both
+    # cases" anti-enumeration property are unchanged.
+    assert r1.status_code == 404 and r1.json()["detail"]["code"] == "NOT_FOUND"
+    assert r2.status_code == 404 and r2.json()["detail"]["code"] == "NOT_FOUND"
 
 
 def test_triage_and_referral_and_status_update_flow(client, org_units, make_actor):

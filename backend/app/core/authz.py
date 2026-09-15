@@ -94,7 +94,7 @@ from fastapi import Depends, Header, HTTPException, Request
 from sqlmodel import Session, text
 
 from app.core.audit import compute_row_hash
-from app.core.tokens import InvalidTokenVersion, TokenError, verify_access_token
+from app.core.tokens import AccessTokenExpired, InvalidTokenVersion, TokenError, verify_access_token
 from app.db.database import get_session
 from app.models.enums import ROLE_LEVEL, RoleCode
 
@@ -279,6 +279,7 @@ def _audit_denied(session: Session, actor_user_id: Optional[str], action: str, d
 
 
 def get_current_active_user(
+    request: Request,
     authorization: Optional[str] = Header(default=None),
     session: Session = Depends(get_session),
 ):
@@ -297,13 +298,25 @@ def get_current_active_user(
     no Authorization header -> EXPECT 401) treat a missing credential
     as an authentication failure, not a validation error. Checking for
     None here and raising 401 ourselves is what makes that match."""
+    # Additive (validation-matrix task): this block previously collapsed
+    # "no token", "expired token", "garbage/wrong-signature token", "user
+    # deleted", and "stale token version" into one identical code,
+    # INVALID_TOKEN. Split into UNAUTHENTICATED (no credential presented
+    # at all, or one that can never be revalidated -- account gone),
+    # TOKEN_EXPIRED (specifically an expired `exp` claim), and TOKEN_STALE
+    # (specifically a `ver` mismatch -- SS10.3's "a demotion/logout-all
+    # takes effect within milliseconds" mechanism). Status codes (401)
+    # and every other code (ACCOUNT_NOT_ACTIVE, PERMISSION_DENIED) are
+    # unchanged.
     if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(401, {"code": "INVALID_TOKEN", "detail": "Missing bearer token."})
+        raise HTTPException(401, {"code": "UNAUTHENTICATED", "detail": "You must be signed in to do this."})
     token = authorization[len("Bearer "):]
     try:
         claims = verify_access_token(token)
+    except AccessTokenExpired:
+        raise HTTPException(401, {"code": "TOKEN_EXPIRED", "detail": "Your session has expired. Please sign in again."})
     except TokenError:
-        raise HTTPException(401, {"code": "INVALID_TOKEN", "detail": "Invalid or expired token."})
+        raise HTTPException(401, {"code": "UNAUTHENTICATED", "detail": "You must be signed in to do this."})
 
     row = session.exec(
         text(
@@ -314,7 +327,7 @@ def get_current_active_user(
         params={"id": claims.get("sub")},
     ).first()
     if row is None:
-        raise HTTPException(401, {"code": "INVALID_TOKEN", "detail": "Account no longer exists."})
+        raise HTTPException(401, {"code": "UNAUTHENTICATED", "detail": "You must be signed in to do this."})
 
     class _CurrentUser:
         def __init__(self, r):
@@ -326,10 +339,24 @@ def get_current_active_user(
         from app.core.tokens import check_token_version
         check_token_version(claims, user.token_version)
     except InvalidTokenVersion:
-        raise HTTPException(401, {"code": "INVALID_TOKEN", "detail": "Token has been superseded."})
+        raise HTTPException(401, {"code": "TOKEN_STALE",
+                                   "detail": "Your session is no longer valid. Please sign in again."})
 
     if user.status != "ACTIVE":
         raise HTTPException(401, {"code": "ACCOUNT_NOT_ACTIVE", "detail": "Account is not active."})
+
+    # Deployment-hardening task: stashed here, not anywhere else, since
+    # this is the ONE function every authenticated route ultimately
+    # depends on (directly, or via require()'s own Depends(
+    # get_current_active_user)). app/core/rate_limit.py's `user_or_ip_key`
+    # reads this to key the "everything else: 300/min per user" and
+    # "POST /sync/: 60/hour per user" limits on the actual authenticated
+    # actor rather than IP -- does not change auth behaviour at all, only
+    # exposes the already-resolved id for a middleware to read. FastAPI
+    # resolves this dependency (and therefore sets this) BEFORE calling
+    # any route function, including one wrapped by slowapi's
+    # @limiter.limit(...) decorator, so it's always set in time.
+    request.state.user_id = str(user.id)
 
     return user
 

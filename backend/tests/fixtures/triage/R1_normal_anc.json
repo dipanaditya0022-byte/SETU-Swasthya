@@ -1,0 +1,19 @@
+{
+  "name": "R1_NORMAL_ANC",
+  "description": "A routine antenatal check with no concerning vitals or danger signs. Illustrative threshold, NOT validated clinical protocol -- see backend/tests/test_triage_reference_cases.py's own module docstring and this repo's own Clinical Governance Committee sign-off requirement.",
+  "input": {
+    "protocol": "ANC",
+    "is_pregnant": true,
+    "gestational_weeks": 28,
+    "vitals": {
+      "bp_systolic": 118,
+      "bp_diastolic": 76,
+      "haemoglobin": 11.4
+    },
+    "danger_signs": []
+  },
+  "expect": {
+    "disposition": "MANAGE_HERE",
+    "urgency": "ROUTINE"
+  }
+}

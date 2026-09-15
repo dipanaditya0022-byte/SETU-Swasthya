@@ -1,0 +1,16 @@
+{
+  "name": "R3_EMERGENCY_HYPERTENSIVE",
+  "description": "Blood pressure crosses the ANC severe-hypertension emergency threshold (bp_systolic >= 160 or bp_diastolic >= 110). Illustrative threshold, NOT validated clinical protocol.",
+  "input": {
+    "protocol": "ANC",
+    "vitals": {
+      "bp_systolic": 172,
+      "bp_diastolic": 116
+    },
+    "danger_signs": []
+  },
+  "expect": {
+    "disposition": "EMERGENCY",
+    "urgency": "IMMEDIATE"
+  }
+}

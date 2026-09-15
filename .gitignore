@@ -25,3 +25,7 @@ secrets/
 
 .claude/*
 .continue/*
+backend/.venv
+
+# Day 2 API verification captures (README + example JSON, local reference only)
+backend/testing/

@@ -61,7 +61,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
-from jose import JWTError, jwt
+from jose import ExpiredSignatureError, JWTError, jwt
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 from sqlmodel import Session, text
@@ -96,6 +96,15 @@ class DeviceMismatch(TokenError):
 
 class AccountNotActive(TokenError):
     pass
+
+
+class AccessTokenExpired(TokenError):
+    """Additive (validation-matrix task): raised by verify_access_token
+    specifically when the token's own `exp` claim has passed -- distinct
+    from every other reason `jwt.decode` can fail (bad signature, wrong
+    issuer/audience, malformed token), which stay generic TokenError.
+    Lets the route layer return a specific 401 TOKEN_EXPIRED instead of
+    lumping "expired" in with "garbage token" under one code."""
 
 
 class InvalidTokenVersion(TokenError):
@@ -196,6 +205,11 @@ def verify_access_token(token: str) -> dict[str, Any]:
             issuer=os.environ.get("JWT_ISSUER", "setu-swasthya"),
             audience=os.environ.get("JWT_AUDIENCE", "setu-api"),
         )
+    except ExpiredSignatureError as exc:
+        # Additive (validation-matrix task): checked BEFORE the generic
+        # JWTError catch below, since ExpiredSignatureError is itself a
+        # JWTError subclass -- order matters here.
+        raise AccessTokenExpired(f"Access token expired: {exc}") from exc
     except JWTError as exc:
         raise TokenError(f"Invalid access token: {exc}") from exc
 

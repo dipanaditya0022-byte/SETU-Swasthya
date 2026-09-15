@@ -81,6 +81,28 @@ router = APIRouter(prefix="/triage", tags=["Triage"])
 # pattern in this package, not a new one).
 _VALID_PROTOCOLS: set[str] = {"ANC", "IMNCI", "NCD", "TB", "FEVER", "INJURY", "GENERAL"}
 
+# Additive (validation-matrix task): physiologically-plausible bounds for
+# every vital name app/services/triage/fallback.py's protocol handlers
+# actually read (grepped directly against that file's own `_vital(v,
+# "...")` calls -- this list is exhaustive, not a guess). Generous on
+# purpose -- wide enough to never reject a real, if extreme, reading;
+# tight enough to catch a data-entry error (an extra digit, a decimal
+# slip) before it reaches the engine or the DB. Not a clinical judgement
+# about what's "concerning" (that's fallback.py's own job, e.g. its
+# `bp_sys >= 160` EMERGENCY threshold) -- purely "could a living person
+# have this value at all".
+_VITAL_RANGES: dict[str, tuple[float, float]] = {
+    "bp_systolic": (40, 300),
+    "bp_diastolic": (20, 200),
+    "temperature_c": (25, 45),
+    "pulse": (20, 250),
+    "spo2": (0, 100),
+    "respiratory_rate": (0, 120),
+    "haemoglobin": (0, 25),
+    "muac_cm": (0, 30),
+    "blood_glucose": (0, 800),
+}
+
 # The nine engine-computed columns (migration a4d72f9e1c83). A client
 # sending any of these is never authoritative -- see STEP 3 below.
 _DECISION_OUTPUT_FIELDS: set[str] = {
@@ -208,7 +230,10 @@ def create_triage(
 
     patient = session.get(Patient, triage_in.patient_id)
     if patient is None:
-        raise HTTPException(status_code=404, detail="Patient not found")
+        # Additive (validation-matrix task): adds `code: PATIENT_NOT_FOUND`
+        # alongside the existing message. No existing test asserts the
+        # old bare-string shape for this route (checked).
+        raise HTTPException(status_code=404, detail={"code": "PATIENT_NOT_FOUND", "detail": "Patient not found"})
     if not org_unit_is_within_scope(session, patient.org_unit_id, current_user.scope_org_unit_id):
         raise HTTPException(403, {"code": "OUT_OF_SCOPE", "detail": "That patient is outside the area you manage."})
 
@@ -248,6 +273,30 @@ def create_triage(
     if protocol not in _VALID_PROTOCOLS:
         raise HTTPException(422, {"code": "INVALID_PROTOCOL",
                                    "detail": f"Unknown triage protocol: {protocol!r}."})
+
+    # GAP FOUND AND FIXED (validation-matrix task): no vital had ever been
+    # range-checked -- a physiologically impossible value (e.g.
+    # bp_systolic: 400) previously sailed straight into the engine and
+    # came back looking like a normal EMERGENCY reading (>= 160 already
+    # fires that branch in fallback.py's own _anc()), silently masking
+    # what's actually a data-entry error (a typo, a decimal slip) as a
+    # real clinical emergency. Rejected up front instead, before STEP 5,
+    # so a bad number never reaches the engine OR the DB. Deliberately
+    # NOT the same thing as `vitals: {}` (missing data) -- an EMPTY
+    # vitals dict is a clinical situation (escalates to REFER via
+    # fallback.py's own _escalate_if_insufficient, unchanged by this
+    # check) and must keep returning 200, never 422; this check only
+    # fires when a vital IS present but its value is outside anything a
+    # living person could have.
+    for field_name, (lo, hi) in _VITAL_RANGES.items():
+        value = triage_in.vitals.get(field_name)
+        if value is not None and not (lo <= value <= hi):
+            raise HTTPException(422, {
+                "code": "VITAL_OUT_OF_RANGE",
+                "field": field_name,
+                "min": lo, "max": hi,
+                "detail": f"'{field_name}' must be between {lo} and {hi} (got {value}).",
+            })
 
     engine_input = TriageInput(
         protocol=protocol,
@@ -323,9 +372,19 @@ def create_triage(
     triage.engine = engine_name
     triage.evaluated_at = datetime.now(timezone.utc)
 
+    # ATOMICITY (backend/docs/DAY3_BUGS.md follow-up task): triage row +
+    # audit row must be ONE transaction. Previously `session.commit()`
+    # happened here, before the audit write -- proven live via a
+    # forced-failure probe: the request returned 500, but a triage row
+    # persisted anyway (disposition='REFER', correctly populated since
+    # the engine already runs before this point -- STEP 5 above -- but
+    # with no corresponding TRIAGE_EVALUATED audit row, and the caller
+    # has no way to know the row exists). Fix: `session.flush()` instead
+    # of `session.commit()` -- assigns `triage.id` (needed for the audit
+    # row's target_id) without ending the transaction. One commit only,
+    # at the end, covering both rows atomically.
     session.add(triage)
-    session.commit()
-    session.refresh(triage)
+    session.flush()
 
     # ------------------------------------------------------------
     # STEP 7 -- audit.
@@ -335,10 +394,9 @@ def create_triage(
                  metadata={"engine": engine_name, "protocol_version": triage.protocol_version,
                            "disposition": triage.disposition, "insufficient_data": triage.insufficient_data})
     session.commit()
-    # SQLAlchemy's default expire_on_commit=True means this second commit
-    # expires `triage`'s cached attributes -- found by testing on
-    # app/api/routes/patients.py's identical pattern; response
-    # serialization would otherwise return an empty body.
+    # expire_on_commit=True (SQLAlchemy default) expires `triage`'s
+    # cached attributes on this one commit -- response serialization
+    # would otherwise return an empty body.
     session.refresh(triage)
 
     # ------------------------------------------------------------

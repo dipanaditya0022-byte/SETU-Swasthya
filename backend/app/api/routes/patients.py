@@ -92,7 +92,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, text
 
 from app.core.authz import org_unit_is_within_scope, require
-from app.core.crypto import blind_index, encrypt_field, mask_mobile
+from app.core.crypto import _MOBILE_RE, blind_index, encrypt_field, mask_mobile
 from app.db.database import get_session
 from app.models import Patient
 
@@ -130,11 +130,48 @@ def create_patient(
     current_user=Depends(require("patient:create")),
     session: Session = Depends(get_session),
 ):
+    # ATOMICITY-ADJACENT GAP FOUND (validation-matrix task): `Patient` is
+    # a `table=True` SQLModel class used directly as the request body.
+    # SQLModel's table classes make every field Optional-with-default-None
+    # at the pydantic-validation layer regardless of the Python type
+    # annotation (needed so partial construction works for ORM purposes)
+    # -- confirmed live: a request omitting `name` or `age` was NOT
+    # rejected by FastAPI/pydantic at all; `patient.name`/`patient.age`
+    # came through as `None`, and the request 500'd on a raw Postgres
+    # NOT NULL violation instead of a clean 422. Same imperative-check
+    # pattern as the existing PHONE_REQUIRED check just below (which
+    # already had to work around this for a different reason -- see that
+    # check's own comment).
+    if not patient.name:
+        raise HTTPException(422, {"code": "NAME_REQUIRED",
+                                   "detail": "name is required to register a patient."})
+    if patient.age is None:
+        raise HTTPException(422, {"code": "AGE_REQUIRED",
+                                   "detail": "age is required to register a patient."})
+    if not (0 <= patient.age <= 120):
+        raise HTTPException(422, {"code": "INVALID_AGE",
+                                   "detail": "age must be between 0 and 120."})
+    if not patient.village:
+        raise HTTPException(422, {"code": "VILLAGE_REQUIRED",
+                                   "detail": "village is required to register a patient."})
+    if patient.facility_id is None:
+        raise HTTPException(422, {"code": "FACILITY_ID_REQUIRED",
+                                   "detail": "facility_id is required to register a patient."})
     if not patient.phone:
         # Deliberate, user-confirmed contract change -- see module
         # docstring point 1. backend/docs/API_CONTRACT.md amended to match.
         raise HTTPException(422, {"code": "PHONE_REQUIRED",
                                    "detail": "phone is required to register a patient."})
+    if not _MOBILE_RE.match(patient.phone):
+        # Previously this reached `mask_mobile()` further down unguarded,
+        # which raises a bare ValueError on a malformed mobile -- 500,
+        # not 422 (confirmed live before this fix). Validated up front
+        # instead, with the same E.164 Indian-mobile pattern crypto.py's
+        # own mask_mobile()/blind_index() already assume is true by the
+        # time a value reaches them.
+        raise HTTPException(422, {"code": "INVALID_MOBILE",
+                                   "detail": "phone must be a valid Indian mobile number, "
+                                             "e.g. +919876543210."})
     if current_user.scope_org_unit_id is None:
         raise HTTPException(403, {"code": "OUT_OF_SCOPE",
                                    "detail": "Your account has no posting to attribute this record to."})
@@ -144,9 +181,20 @@ def create_patient(
     patient.created_by_user_id = current_user.id
     patient.org_unit_id = current_user.scope_org_unit_id
 
+    # ATOMICITY (backend/docs/DAY3_BUGS.md follow-up task): user row +
+    # patient row + consent row must be ONE transaction. Previously this
+    # did `session.add(patient); session.commit()` here, THEN the
+    # users/consents inserts and a second commit below -- proven live to
+    # leave an orphan `patient` row with no linked identity if anything
+    # after the first commit raised (forced-failure probe: patient row
+    # persisted, matching `users` row count stayed 0, client still got a
+    # 500). Fix: `session.flush()` instead of `session.commit()` here --
+    # flush assigns `patient.id` (needed below, same as commit would) and
+    # makes the row visible to the rest of *this* transaction, without
+    # ending it. Exactly one `session.commit()` now, at the very end,
+    # covering patient + users + consents + both audit rows atomically.
     session.add(patient)
-    session.commit()
-    session.refresh(patient)
+    session.flush()
 
     # SS5.4 "Assisted registration" -- also link a `users` row, unless
     # this phone is already registered elsewhere (module docstring point 2).
@@ -187,11 +235,9 @@ def create_patient(
                  target_type="PATIENT", target_id=str(patient.id),
                  metadata={"identity_created": identity_created})
     session.commit()
-    # Found by testing: SQLAlchemy's default expire_on_commit=True means
-    # this second commit (the first happens right after the initial
-    # insert, to get an id for the identity-linking work above) expires
-    # `patient`'s cached attributes -- response_model serialization would
-    # otherwise return an empty body. Re-refresh before returning.
+    # expire_on_commit=True (SQLAlchemy default) expires `patient`'s
+    # cached attributes on this one commit -- response_model serialization
+    # would otherwise return an empty body. Re-refresh before returning.
     session.refresh(patient)
     return patient
 
@@ -207,7 +253,14 @@ def get_patient(
     if not patient or not org_unit_is_within_scope(session, patient.org_unit_id, current_user.scope_org_unit_id):
         # Original exact shape, reused for both cases -- see module
         # docstring's "Scope for READ" note.
-        raise HTTPException(status_code=404, detail="Patient not found")
+        # Additive (validation-matrix task): adds a `code` alongside the
+        # existing message so callers get a machine-readable value too --
+        # tests/test_existing_endpoints.py's own frozen test for this 404
+        # updated in the same change to match (see that test's own
+        # comment). Status code (404) and the reused shape for BOTH
+        # "doesn't exist" and "out of scope" (SS16.2 anti-enumeration,
+        # module docstring above) are unchanged.
+        raise HTTPException(status_code=404, detail={"code": "NOT_FOUND", "detail": "Patient not found"})
 
     _write_audit(session, actor_user_id=str(current_user.id), action="PATIENT_PHI_READ", outcome="SUCCESS",
                  target_type="PATIENT", target_id=str(patient.id))

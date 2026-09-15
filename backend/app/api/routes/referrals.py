@@ -89,7 +89,7 @@ from app.models import Patient, Referral
 from app.services.escalation.factory import get_escalation_engine
 from app.services.escalation.fallback import resolve_escalation_target
 from app.services.escalation.port import EscalationInput
-from app.services.referral.breach import compute_due_at, is_breached, normalize_urgency
+from app.services.referral.breach import URGENCY_WINDOWS, compute_due_at, is_breached, normalize_urgency
 from app.models.referral_state import (
     ALLOWED_TRANSITIONS,
     COMPLETED_STATES,
@@ -102,6 +102,22 @@ from app.models.referral_state import (
 )
 
 router = APIRouter(prefix="/referrals", tags=["Referrals"])
+
+# Additive (validation-matrix task): the org-unit tiers a referral can
+# actually be sent TO -- everywhere in app/models/enums.py's OrgUnitType
+# EXCEPT the purely administrative tiers (STATE, DISTRICT, DISTRICT_OFFICE,
+# BLOCK, SUB_CENTRE, VILLAGE -- see this module's own docstring hierarchy
+# note: "STATE > DISTRICT > DISTRICT_OFFICE > BLOCK > {facility tiers} >
+# SUB_CENTRE > VILLAGE"). Used only to REJECT a destination that resolves
+# to a real, wrong-tier org_units row -- see create_referral's own check.
+_FACILITY_ORG_UNIT_TYPES = {"PHC", "CHC", "SDH", "HWC", "DISTRICT_HOSPITAL", "TELE_HUB"}
+
+# Additive (validation-matrix task): must match app/services/escalation/
+# factory.py's (and adapter.py's, identically) own `_VALID_STAGES` --
+# both module-private, so mirrored here rather than imported, same as
+# every other "private constant mirrored, not reached across a module
+# boundary" precedent already in this codebase.
+_VALID_ESCALATION_STAGES = {0, 1, 2, 3}
 
 # Canonical display order for `allowed_next` / the `detail` sentence --
 # ALLOWED_TRANSITIONS' values are Python `set`s, which have no reliable
@@ -172,9 +188,51 @@ def create_referral(
 
     patient = session.get(Patient, referral.patient_id)
     if patient is None:
-        raise HTTPException(status_code=404, detail="Patient not found")
+        raise HTTPException(status_code=404, detail={"code": "PATIENT_NOT_FOUND", "detail": "Patient not found"})
     if not org_unit_is_within_scope(session, patient.org_unit_id, current_user.scope_org_unit_id):
         raise HTTPException(403, {"code": "OUT_OF_SCOPE", "detail": "That patient is outside the area you manage."})
+
+    # GAP FOUND AND FIXED (validation-matrix task): `referral.urgency` is
+    # `TEXT NOT NULL` with no CHECK constraint or enum -- app/services/
+    # referral/breach.py's own module docstring already flags this
+    # exact gap ("FLAGGED FOR THE HUMAN, NOT DECIDED HERE: referral.
+    # urgency should probably become a real enum/CHECK constraint"),
+    # explicitly deferring it because a migration was out of scope for
+    # that step. A migration is still out of scope here too -- this is
+    # the same fix at the REQUEST-validation layer instead, which is all
+    # this task asks for: reject an unrecognised urgency at the door
+    # rather than let it silently fall back to the ROUTINE SLA window
+    # (compute_due_at's own documented fallback, unchanged for any
+    # caller that still relies on case-insensitivity -- "routine",
+    # "Routine", "ROUTINE" all still work, only genuinely unrecognised
+    # values are rejected now).
+    if normalize_urgency(referral.urgency) not in URGENCY_WINDOWS:
+        raise HTTPException(422, {
+            "code": "INVALID_URGENCY",
+            "detail": f"urgency must be one of: {', '.join(sorted(URGENCY_WINDOWS))} (got {referral.urgency!r}).",
+        })
+
+    # GAP FOUND AND FIXED (validation-matrix task): `destination_facility_id`
+    # carries no FK to org_units (module docstring above, point 3) and is
+    # never validated at all today -- confirmed by reading this route
+    # before this change. Existing tests/fixtures that pass a free-
+    # standing UUID matching nothing in org_units are left alone (that's
+    # this route's own pre-existing, documented behaviour, unrelated to
+    # this check); this only rejects a destination that DOES resolve to
+    # a real org_units row whose unit_type is an administrative tier
+    # (STATE/DISTRICT/.../BLOCK/SUB_CENTRE/VILLAGE -- see app/models/
+    # enums.py's own OrgUnitType), not a facility someone could actually
+    # be referred to.
+    dest_row = session.exec(
+        text("SELECT unit_type FROM org_units WHERE id = :id"),
+        params={"id": str(referral.destination_facility_id)},
+    ).first()
+    if dest_row is not None and dest_row[0] not in _FACILITY_ORG_UNIT_TYPES:
+        raise HTTPException(422, {
+            "code": "INVALID_ORG_UNIT_TYPE",
+            "detail": f"destination_facility_id refers to a {dest_row[0]}, which is not a facility "
+                      f"a patient can be referred to. Must be one of: {', '.join(sorted(_FACILITY_ORG_UNIT_TYPES))}.",
+        })
 
     referral.created_by_user_id = current_user.id
     referral.org_unit_id = current_user.scope_org_unit_id
@@ -190,14 +248,40 @@ def create_referral(
     # and was already nullable.
     referral.due_at = compute_due_at(referral.initiated_at, referral.urgency)
 
+    # ATOMICITY (backend/docs/DAY3_BUGS.md follow-up task): referral row +
+    # initial transition row + audit row must be ONE transaction.
+    #
+    # TWO issues fixed here together:
+    #  1. `session.commit()` used to happen right after `session.add
+    #     (referral)`, before the audit write -- same non-atomic pattern
+    #     as patients.py/triage.py, same fix: `session.flush()` instead,
+    #     one `session.commit()` at the end.
+    #  2. GAP FOUND (not previously present): unlike every status
+    #     transition via PATCH .../status (which always writes a
+    #     referral_transitions row -- STEP 6 of that route), referral
+    #     CREATION never wrote one. A brand-new referral's own
+    #     `referral_transitions` history was permanently empty -- no
+    #     record of who initiated it or when, only inferable from the
+    #     referral row's own initiated_at/created_by_user_id (live-
+    #     confirmed: `SELECT count(*) FROM referral_transitions WHERE
+    #     referral_id = ...` was 0 immediately after creation). Since
+    #     this task's own Part 2 spec explicitly lists "referral row +
+    #     initial transition + audit row" as the required unit, this adds
+    #     that missing NULL -> INITIATED transition row, using the same
+    #     `_write_transition` helper PATCH .../status already relies on --
+    #     no new write path invented.
     session.add(referral)
-    session.commit()
-    session.refresh(referral)
+    session.flush()
 
+    _write_transition(
+        session, referral_id=referral.id, from_status=None,
+        to_status=ReferralState.INITIATED.value, actor_user_id=current_user.id,
+        actor_role=current_user.role, reason=None, metadata={},
+    )
     _write_audit(session, actor_user_id=str(current_user.id), action="REFERRAL_CREATED", outcome="SUCCESS",
                  target_type="REFERRAL", target_id=str(referral.id))
     session.commit()
-    # Same expire_on_commit note as app/api/routes/patients.py/triage.py.
+    # expire_on_commit note as app/api/routes/patients.py/triage.py.
     session.refresh(referral)
 
     return referral
@@ -456,7 +540,10 @@ def update_referral_status(
     # ------------------------------------------------------------
     referral = session.get(Referral, referral_id)
     if not referral or not org_unit_is_within_scope(session, referral.org_unit_id, current_user.scope_org_unit_id):
-        raise HTTPException(status_code=404, detail="Referral not found")
+        # Additive (validation-matrix task): adds `code: NOT_FOUND`
+        # alongside the existing message. No existing test asserts the
+        # old bare-string shape for this route (checked).
+        raise HTTPException(status_code=404, detail={"code": "NOT_FOUND", "detail": "Referral not found"})
 
     current_status = referral.status if isinstance(referral.status, ReferralState) else ReferralState(referral.status)
     requested_status = status
@@ -486,9 +573,19 @@ def update_referral_status(
     old_status_value = current_status.value
     referral.status = requested_status
 
+    # ATOMICITY (backend/docs/DAY3_BUGS.md follow-up task): referral
+    # update + transition row + audit row must be ONE transaction.
+    # Previously `session.commit()` happened right here, before the
+    # transition/audit writes -- proven live via a forced-failure probe:
+    # PATCH returned 500, but `referral.status` was already permanently
+    # SLOT_BOOKED in the DB with ZERO referral_transitions rows -- an
+    # un-audited status change the caller has no way to retry (the state
+    # machine now rejects re-sending the same transition, since it's
+    # already "there"). Fix: `session.flush()` instead of `session.
+    # commit()` -- one commit only, at the end, covering the referral
+    # update + transition row + audit row atomically.
     session.add(referral)
-    session.commit()
-    session.refresh(referral)
+    session.flush()
 
     # ------------------------------------------------------------
     # STEP 6 -- append-only referral_transitions row, every transition.
@@ -506,7 +603,7 @@ def update_referral_status(
                  target_type="REFERRAL", target_id=str(referral.id),
                  metadata={"from": old_status_value, "to": requested_status.value, **extra_metadata})
     session.commit()
-    # Same expire_on_commit note as create_referral above.
+    # expire_on_commit note as create_referral above.
     session.refresh(referral)
 
     # ------------------------------------------------------------
@@ -767,6 +864,24 @@ def list_referral_exceptions(
         except ValueError:
             raise HTTPException(422, {"code": "INVALID_STAGE",
                                        "detail": "stage must be a comma-separated list of integers."})
+        # GAP FOUND AND FIXED (validation-matrix task): the check above
+        # only validated that `stage` was syntactically integers -- a
+        # syntactically-fine but meaningless value like `stage=99` (no
+        # such escalation stage exists) previously passed straight
+        # through and just silently returned zero rows further down,
+        # never explaining why. app/services/escalation/factory.py's own
+        # `_VALID_STAGES` (also app/services/escalation/adapter.py,
+        # identically) is the actual, existing domain of real escalation
+        # stages -- reused here as the source of truth, not a new,
+        # separately-invented range.
+        invalid_stages = stage_filter - _VALID_ESCALATION_STAGES
+        if invalid_stages:
+            raise HTTPException(422, {
+                "code": "INVALID_FILTER",
+                "field": "stage",
+                "detail": f"stage must be one of {sorted(_VALID_ESCALATION_STAGES)} "
+                          f"(got {sorted(invalid_stages)}).",
+            })
 
     candidates = session.exec(stmt).all()
 
