@@ -49,3 +49,71 @@ before any public smoke test. Fails loudly, naming the offending row
 id, if any patient mobile doesn't carry the seed prefix, any patient
 name matches a known-real-person denylist, or any unseeded ABHA number
 is present.
+
+## FROZEN — demo-v1.0
+
+All four freeze preconditions confirmed before this freeze: the 24-test
+smoke suite passed against the public demo URL; the offline→reconnect→sync
+test passed AFTER the deployment-hardening step was deployed; the
+rollback rehearsal ran against the public URL on a venue-like network;
+this runbook and `KNOWN_ISSUES.md` both exist and are committed.
+
+| Field | Value |
+|---|---|
+| Deployed commit (full SHA) | `b032252690a51a96b2c776bb2fd29c4e99ce70c3` |
+| Tag | `demo-v1.0` |
+| Tag short SHA (what `/health`'s `commit` field must equal) | `5f48e76` |
+| Migration head | `b9e4c7a2f815` (queried live from `alembic_version` in the local demo DB; also what `/health` reports) |
+| `TRIAGE_ENGINE` | `fallback` (confirmed live via `/health` during the rollback rehearsal) |
+| `ESCALATION_ENGINE` | `fallback` (confirmed live via `/health` during the rollback rehearsal) |
+| Seed script | `scripts/seed_demo.py` (deterministic — fixed UUIDs/names, idempotent truncate+reinsert; `scripts/reset_demo.sh` wraps it with row-count verification) |
+| DB snapshot | `backend/backups/demo_frozen_2026-09-15.sql` (local demo DB only — see caveat below) |
+| Rollback rehearsal time | 48 seconds, real, measured (checkout of `demo-v1.0` + `docker compose up --build -d` + DB restore + `/health` commit verification, start to finish) |
+| Freeze owner | Iqra Khan |
+| Freeze timestamp | 2026-09-15 17:39 IST |
+
+**Caveats, stated plainly, not papered over:**
+
+- The public-deployment `/health` commit check (`curl $PUBLIC_URL/health |
+  jq .commit`, expected to equal `5f48e76`) could **not** be executed
+  from this session — there is no `PUBLIC_URL` reachable here, and no
+  access to the real deployed instance. Whoever owns that deployment
+  must run this check themselves before the freeze is truly complete.
+- The DB snapshot above is of the **local** demo database (the
+  `setu_swasthya_db` Docker container), not necessarily the actual
+  public deployment's database. If the real deployment uses a separate
+  database, it needs its own snapshot, taken by whoever has access to
+  it.
+- `docker-compose.yml`'s `api` service did not wire `GIT_COMMIT` through
+  to the container as of this freeze commit. For the local rollback
+  rehearsal, this was patched **temporarily and locally only** (not
+  committed, not part of the frozen tag) so the `/health` commit
+  comparison would be meaningful rather than showing `"unknown"`. This
+  is a real, open gap: any real deployment must set `GIT_COMMIT` at
+  build/deploy time by whatever mechanism that platform uses (build arg,
+  CI env var, etc.) for `/health`'s commit field to ever be anything
+  other than `"unknown"` in production. Recommend wiring
+  `GIT_COMMIT: ${GIT_COMMIT}` into `docker-compose.yml`'s `api.environment`
+  block as a real follow-up, reviewed and committed separately from this
+  freeze.
+
+## Unfreeze criteria
+
+Only a P0 demo blocker found **after** the freeze justifies unfreezing.
+If that happens:
+
+1. Both backend owners must agree in writing.
+2. The fix must be the smallest possible change.
+3. The **full** 24-test smoke suite must re-run — not just the fixed
+   test.
+4. A new tag `demo-v1.1` must be created.
+5. The rollback rehearsal must run again.
+
+If there is not time to re-run the smoke suite, there is not time to
+make the change — ship the known bug and narrate around it instead. A
+known bug is manageable; an untested fix is not.
+
+## Branch status
+
+No further pushes to `backend` after `demo-v1.0`. Day 4 work goes on
+`day4/*` branches.
