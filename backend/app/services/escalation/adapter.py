@@ -10,12 +10,14 @@ MODULE PATH: grepped this repository (and backend/docs/) repo-wide for
 app/services/triage/adapter.py, which had Day2.md SS2.1's own explicit R1
 readiness-check command to pin the exact import path, nothing in this
 repository currently pins where SD's escalation engine will live. Per this
-step's own instruction, this adapter therefore ASSUMES the path by direct
-analogy with the triage adapter's own precedent:
-
-    app.services.escalation.rules, module name `rules` (not `rule_engine`
-    or `engine`), exposing a single function `escalation_for(payload:
-    dict) -> dict`.
+step's own instruction, this adapter therefore ASSUMED the path by direct
+analogy with the triage adapter's own precedent, module name `rules` (not
+`rule_engine` or `engine`), exposing a single function
+`escalation_for(payload: dict) -> dict`. As of the ml/ integration
+(consolidating devansh-ml and sd-triage-automation into one repo-root
+ml/ folder, kept modular from backend/), the module physically moved to
+`ml/escalation/rules.py` -- mirroring triage/adapter.py's own identical
+move -- so this adapter now targets `ml.escalation.rules`.
 
 This is a documented assumption, not a confirmed fact -- if SD's actual
 module differs (different path, different function name, different
@@ -35,10 +37,10 @@ the way in (EscalationOutput itself defaults `escalate_to_role`,
 SD's module, is responsible for knowing which engine actually produced a
 result.
 
-The import of app.services.escalation.rules happens ONLY inside
-escalate() below, never at module import time: importing this adapter
-module (or the factory, which imports this module) must never fail just
-because SD's module doesn't exist yet.
+The import of ml.escalation.rules happens ONLY inside escalate() below,
+never at module import time: importing this adapter module (or the
+factory, which imports this module) must never fail just because SD's
+module doesn't exist yet.
 """
 from __future__ import annotations
 
@@ -64,11 +66,11 @@ class RuleEscalationEngineAdapter:
 
     def escalate(self, data: EscalationInput) -> EscalationOutput:
         try:
-            from app.services.escalation.rules import escalation_for
+            from ml.escalation.rules import escalation_for
         except Exception as exc:  # noqa: BLE001 -- module absent/broken is expected until SD ships it
             raise EscalationEngineError(
                 f"Escalation rule engine module "
-                f"(app.services.escalation.rules) is not importable: {exc}"
+                f"(ml.escalation.rules) is not importable: {exc}"
             ) from exc
 
         payload: dict[str, Any] = data.model_dump()

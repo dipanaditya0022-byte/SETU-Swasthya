@@ -60,9 +60,12 @@ def _probe_readiness() -> tuple[bool, str | None]:
     # R1 -- module imports cleanly, at the path this adapter itself
     # documents as an assumption (see adapter.py's own docstring: no
     # pinned spec for this path exists anywhere in this repo, unlike
-    # triage's Day2.md SS2.1).
+    # triage's Day2.md SS2.1). As of the ml/ integration, the rule engine
+    # module physically lives at ml/escalation/rules.py (repo-root ml/
+    # package, sibling of backend/) -- mirrors triage/factory.py's own
+    # identical move, see that file's comment for the full rationale.
     try:
-        from app.services.escalation import rules as _rule_engine_module
+        from ml.escalation import rules as _rule_engine_module
     except Exception as exc:  # noqa: BLE001 -- absence/breakage is the exact thing being probed for
         return False, f"R1 (module import) failed: {exc}"
 

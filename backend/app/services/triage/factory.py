@@ -49,11 +49,17 @@ def _probe_readiness() -> tuple[bool, str | None]:
     """Runs R1-R6 against the rule engine, in order, stopping at the
     first failure. Returns (ready, failure_reason); failure_reason is
     None iff ready is True."""
-    # R1 -- module imports cleanly. Day2.md SS2.1's own check command is
-    # `python -c "from app.services.triage.rules import evaluate_triage"`
-    # -- module name `rules`, matching adapter.py's own import.
+    # R1 -- module imports cleanly. Day2.md SS2.1's own check command was
+    # originally `python -c "from app.services.triage.rules import
+    # evaluate_triage"` -- module name `rules`, matching adapter.py's own
+    # import. As of the ml/ integration (consolidating devansh-ml and
+    # sd-triage-automation), the rule engine module physically lives at
+    # ml/triage/rules.py (repo-root ml/ package, sibling of backend/),
+    # not inside backend/app/services/triage/ -- see ml/README.md for
+    # why, and docker-compose.yml's PYTHONPATH/volume wiring for how
+    # `import ml...` resolves both on the host and inside the container.
     try:
-        from app.services.triage import rules as _rule_engine_module
+        from ml.triage import rules as _rule_engine_module
     except Exception as exc:  # noqa: BLE001 -- absence/breakage is the exact thing being probed for
         return False, f"R1 (module import) failed: {exc}"
 
