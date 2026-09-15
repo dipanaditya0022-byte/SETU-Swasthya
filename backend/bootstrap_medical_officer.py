@@ -10,7 +10,6 @@ from app.core.password import hash_password
 
 MOBILE = "+919876500002"
 PASSWORD = "Med1calOfficer!Pass"
-SUPERUSER_ID = "f2014011-998c-48f1-8231-673c4be286bf"
 ORG_UNIT_ID = "00000000-0000-0000-0000-000000000002"
 
 engine = create_engine(os.environ["DATABASE_URL"])
@@ -26,6 +25,19 @@ with engine.begin() as conn:
     if existing:
         print(f"Already exists: {existing[0]}")
     else:
+        # Was previously a hardcoded UUID that only matched one laptop's local
+        # DB -- gen_random_uuid() makes bootstrap_superuser.py's id different
+        # on every fresh DB, so a literal here breaks on any other checkout.
+        # Look up whichever SUPERUSER already exists instead. Run
+        # bootstrap_superuser.py first if this comes back empty.
+        creator = conn.execute(
+            text("SELECT id FROM users WHERE role = 'SUPERUSER' ORDER BY activated_at ASC LIMIT 1")
+        ).scalar()
+        if not creator:
+            raise SystemExit(
+                "No SUPERUSER found in the database -- run bootstrap_superuser.py "
+                "(or apply migrations, which seed a default SUPERUSER) before this script."
+            )
         row = conn.execute(text("""
             INSERT INTO users (
                 role, role_level, full_name, preferred_language,
@@ -45,7 +57,7 @@ with engine.begin() as conn:
         """), {
             "menc": mobile_enc, "mbi": mobile_bi, "mmask": mobile_masked,
             "pwhash": pw_hash, "pwchanged": now,
-            "org": ORG_UNIT_ID, "creator": SUPERUSER_ID, "act": now,
+            "org": ORG_UNIT_ID, "creator": creator, "act": now,
         }).first()
         print(f"Created MEDICAL_OFFICER id={row[0]}")
 
