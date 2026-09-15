@@ -14,7 +14,7 @@ teleconsultation, and referrals that can never silently disappear.
 [![FastAPI](https://img.shields.io/badge/backend-FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white)]()
 [![PostgreSQL](https://img.shields.io/badge/database-PostgreSQL-4169E1?style=flat-square&logo=postgresql&logoColor=white)]()
 [![Offline First](https://img.shields.io/badge/design-offline--first-6E56CF?style=flat-square)]()
-[![License](https://img.shields.io/badge/license-TBD-lightgrey?style=flat-square)]()
+[![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
 
 </div>
 
