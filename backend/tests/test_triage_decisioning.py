@@ -303,10 +303,14 @@ async def test_tt5_pre_day2_shaped_request_response_keeps_all_original_keys(
 
 def test_tt6_forced_rule_engine_absent_module_fails_closed_at_factory_level(monkeypatch):
     # Force "module absent" deterministically via sys.modules, regardless
-    # of whether app/services/triage/rules.py happens to exist in this
-    # checkout right now (it does not, as of this step -- confirmed:
-    # no such file in app/services/triage/).
-    monkeypatch.setitem(sys.modules, "app.services.triage.rules", None)
+    # of whether ml/triage/rules.py happens to exist in this checkout
+    # right now. (As of the ml/ integration it does exist -- this
+    # monkeypatch key was updated from "app.services.triage.rules" to
+    # "ml.triage.rules" to match the module's new home, see
+    # app/services/triage/factory.py's own comment -- but this test's
+    # whole point is to prove TT6 still fails closed the moment the
+    # module is unimportable, regardless of whether it currently is.)
+    monkeypatch.setitem(sys.modules, "ml.triage.rules", None)
     monkeypatch.setenv("TRIAGE_ENGINE", "rule")
     triage_factory._cached_readiness.cache_clear()
     try:
@@ -320,7 +324,7 @@ def test_tt6_forced_rule_engine_absent_module_fails_closed_at_factory_level(monk
 async def test_tt6_forced_rule_engine_absent_module_returns_503_not_crash_or_silent_200(
     async_client, org_units, make_actor, monkeypatch,
 ):
-    monkeypatch.setitem(sys.modules, "app.services.triage.rules", None)
+    monkeypatch.setitem(sys.modules, "ml.triage.rules", None)
     monkeypatch.setenv("TRIAGE_ENGINE", "rule")
     triage_factory._cached_readiness.cache_clear()
     try:
@@ -361,7 +365,7 @@ async def test_tt6_forced_rule_engine_absent_module_returns_503_not_crash_or_sil
 async def test_tt7_auto_mode_falls_back_and_logs_and_audits_when_rule_engine_absent(
     async_client, db, org_units, make_actor, monkeypatch, caplog,
 ):
-    monkeypatch.setitem(sys.modules, "app.services.triage.rules", None)
+    monkeypatch.setitem(sys.modules, "ml.triage.rules", None)
     monkeypatch.setenv("TRIAGE_ENGINE", "auto")
     triage_factory._cached_readiness.cache_clear()
     try:

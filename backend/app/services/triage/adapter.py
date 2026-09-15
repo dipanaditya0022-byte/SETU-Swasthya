@@ -8,30 +8,34 @@ able to block this endpoint.
 MODULE PATH, pinned by the actual spec (not guessed): nothing in this
 repository defines `evaluate_triage` yet -- grepped repo-wide, the only
 hits are this triage/ package itself and backend/docs/Day2.md. Day2.md
-Section 2.1's own readiness check (R1) is explicit and unambiguous
-about where SD's module lives:
+Section 2.1's own readiness check (R1) was originally explicit and
+unambiguous about where SD's module lives:
 
     python -c "from app.services.triage.rules import evaluate_triage"
 
-so this adapter targets that exact path -- `app.services.triage.rules`,
-module name `rules`, not `rule_engine` -- rather than inventing one.
-The function is called with a single `dict` argument (`TriageInput.
-model_dump()`) and is expected to return a `dict` carrying, at minimum,
-the five required TriageOutput fields: disposition, urgency, reason,
-red_flags, protocol_version. Day2.md does not spell out
-evaluate_triage's exact parameter/return typing beyond that, so this
-adapter's job -- translate in, validate out -- is what absorbs any
-mismatch.
+module name `rules`, not `rule_engine` -- rather than inventing one. As
+of the ml/ integration (consolidating devansh-ml and
+sd-triage-automation into one repo-root ml/ folder, kept modular from
+backend/), the rule engine module physically moved to
+`ml/triage/rules.py` -- so this adapter now targets `ml.triage.rules`
+instead. See ml/README.md and docker-compose.yml's PYTHONPATH/volume
+wiring for how `import ml...` resolves. The function is called with a
+single `dict` argument (`TriageInput.model_dump()`) and is expected to
+return a `dict` carrying, at minimum, the five required TriageOutput
+fields: disposition, urgency, reason, red_flags, protocol_version.
+Day2.md does not spell out evaluate_triage's exact parameter/return
+typing beyond that, so this adapter's job -- translate in, validate
+out -- is what absorbs any mismatch.
 
 If SD's actual module differs from this (different path, different
 argument shape), THIS file is what needs updating -- not port.py's
 Protocol, and not the factory's readiness probe, both of which are
 shape-agnostic.
 
-The import of app.services.triage.rules happens ONLY inside evaluate()
-below, never at module import time: importing this adapter module (or
-the factory, which imports this module) must never fail just because
-SD's module doesn't exist yet.
+The import of ml.triage.rules happens ONLY inside evaluate() below,
+never at module import time: importing this adapter module (or the
+factory, which imports this module) must never fail just because SD's
+module doesn't exist yet.
 """
 from __future__ import annotations
 
@@ -57,10 +61,10 @@ class RuleEngineAdapter:
 
     def evaluate(self, data: TriageInput) -> TriageOutput:
         try:
-            from app.services.triage.rules import evaluate_triage
+            from ml.triage.rules import evaluate_triage
         except Exception as exc:  # noqa: BLE001 -- module absent/broken is expected until SD ships it
             raise TriageEngineError(
-                f"Rule engine module (app.services.triage.rules) is not "
+                f"Rule engine module (ml.triage.rules) is not "
                 f"importable: {exc}"
             ) from exc
 
