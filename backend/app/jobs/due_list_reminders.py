@@ -4,10 +4,9 @@ Identifies open referrals requiring operational follow-up:
 1. Upcoming referrals approaching their SLA window (within lookahead_hours).
 2. Breached/overdue referrals requiring active escalation follow-up.
 
-Consumes the pure SD escalation rule engine (ml.escalation.rules.escalation_for
--- moved from backend/app/services/escalation/ as part of the ml/
-integration, see ml/README.md) to annotate overdue reminders with
-deterministic escalation stages and roles.
+Consumes the modular escalation engine (app.services.escalation.factory.get_escalation_engine
+and EscalationInput) to annotate overdue reminders with deterministic escalation
+stages and roles.
 
 Standalone CLI-runnable module matching existing jobs (breach_detection, credential_expiry).
 """
@@ -21,8 +20,9 @@ from sqlmodel import Session, select
 
 from app.models.referral import Referral
 from app.models.referral_state import COMPLETED_STATES, ReferralState
+from app.services.escalation.factory import get_escalation_engine
+from app.services.escalation.port import EscalationInput
 from app.services.referral.breach import is_breached, normalize_urgency
-from ml.escalation.rules import escalation_for
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +55,7 @@ def generate_due_list_reminders(
         Summary dict containing counts and ordered reminder items.
     """
     now = now or datetime.now(timezone.utc)
+    engine = get_escalation_engine()
 
     # Exclude terminal/completed states: ARRIVED, CONSULTED, BACK_REFERRED, CLOSED, CANCELLED
     non_open_statuses = list(COMPLETED_STATES) + [ReferralState.CANCELLED]
@@ -88,17 +89,17 @@ def generate_due_list_reminders(
         )
 
         if is_breached(referral, now):
-            # Case 1: Overdue referral - compute escalation details via SD rule engine
-            esc_payload = {
-                "urgency": referral.urgency,
-                "initiated_at": referral.initiated_at,
-                "due_at": due_at,
-                "now": now,
-                "current_stage": referral.escalation_stage,
-                "owner_user_id": referral.owner_user_id,
-                "status": status_val,
-            }
-            esc_out = escalation_for(esc_payload)
+            # Case 1: Overdue referral - compute escalation details via modular escalation engine
+            esc_input = EscalationInput(
+                urgency=referral.urgency,
+                initiated_at=referral.initiated_at,
+                due_at=due_at,
+                now=now,
+                current_stage=referral.escalation_stage,
+                owner_user_id=referral.owner_user_id,
+                status=status_val,
+            )
+            esc_out = engine.escalate(esc_input)
             elapsed_hours = (now - due_at).total_seconds() / 3600.0
 
             reminder = {
@@ -109,17 +110,17 @@ def generate_due_list_reminders(
                 "status": status_val,
                 "due_at": due_at.isoformat(),
                 "overdue_hours": round(elapsed_hours, 2),
-                "escalation_stage": esc_out["stage"],
-                "escalate_to_role": esc_out.get("escalate_to_role"),
+                "escalation_stage": esc_out.stage,
+                "escalate_to_role": esc_out.escalate_to_role,
                 "due_action_at": (
-                    esc_out["due_action_at"].isoformat()
-                    if esc_out.get("due_action_at")
+                    esc_out.due_action_at.isoformat()
+                    if esc_out.due_action_at
                     else None
                 ),
                 "owner_user_id": (
                     str(referral.owner_user_id) if referral.owner_user_id else None
                 ),
-                "message": esc_out["message"],
+                "message": esc_out.message,
             }
             _notify_reminder(reminder)
             overdue_reminders.append(reminder)
