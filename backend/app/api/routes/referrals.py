@@ -487,8 +487,6 @@ def update_referral_status(
     referral.status = requested_status
 
     session.add(referral)
-    session.commit()
-    session.refresh(referral)
 
     # ------------------------------------------------------------
     # STEP 6 -- append-only referral_transitions row, every transition.
