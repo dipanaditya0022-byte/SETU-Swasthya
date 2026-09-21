@@ -256,12 +256,28 @@ def _handle_newly_breached(session: Session, referral: Referral, now: datetime) 
     if max_stage > 0 and referral.escalation_stage == 0:
         # Only from 0 -- never regress or double-apply on top of a stage
         # the NOT_ARRIVED transition (or a prior job run) already set.
-        referral.escalation_stage = 1
+        #
+        # Fix (emergency escalation review issue): instead of always bumping
+        # to 1, compute the target at 0 elapsed hours using the shared
+        # _target_stage helper. For EMERGENCY, _ESCALATION_HOURS has
+        # {1:0, 2:0, 3:0} so all three thresholds are met at 0h and
+        # _target_stage returns 3 immediately. For every other urgency
+        # (URGENT: {2:24, 3:48}, PRIORITY: {2:96, 3:120}, ROUTINE: {2:240})
+        # no threshold is met at 0h so target=0 and we fall back to 1 as the
+        # unconditional newly-breached minimum -- preserving existing behaviour
+        # for all non-EMERGENCY urgencies.
+        immediate_target = _target_stage(referral.urgency, 0.0)
+        new_stage = immediate_target if immediate_target > 0 else 1
+        referral.escalation_stage = new_stage
         referral.escalation_notified_at = now
         stage_bumped = True
 
     session.add(referral)
-    session.commit()
+    # Fix (transaction atomicity review issue): use flush() here instead of
+    # commit() so the referral update and the audit INSERT below share one
+    # transaction. A failed audit write now rolls back the breached_at change
+    # too -- the referral is never left marked as breached without an audit row.
+    session.flush()
     session.refresh(referral)
 
     _write_audit(
@@ -275,6 +291,7 @@ def _handle_newly_breached(session: Session, referral: Referral, now: datetime) 
             "via": "SYSTEM_JOB",
         },
     )
+    # Single commit covers both the referral update and the audit row.
     session.commit()
 
     if stage_bumped:
@@ -301,7 +318,9 @@ def _handle_escalation(session: Session, referral: Referral, now: datetime) -> b
     referral.escalation_stage = target
     referral.escalation_notified_at = now
     session.add(referral)
-    session.commit()
+    # Fix (transaction atomicity review issue): flush instead of commit so the
+    # escalation update and the audit INSERT below are one atomic transaction.
+    session.flush()
     session.refresh(referral)
 
     _write_audit(
@@ -309,6 +328,7 @@ def _handle_escalation(session: Session, referral: Referral, now: datetime) -> b
         target_type="REFERRAL", target_id=str(referral.id),
         metadata={"urgency": referral.urgency, "escalation_stage": target, "via": "SYSTEM_JOB"},
     )
+    # Single commit covers both the referral update and the audit row.
     session.commit()
 
     _notify_owner(referral, reason=f"escalated to stage {target}")
@@ -329,11 +349,22 @@ async def detect_breaches(session: Session, now: Optional[datetime] = None) -> d
     now = now or datetime.now(timezone.utc)
 
     non_open_statuses = list(COMPLETED_STATES) + [ReferralState.CANCELLED]
+    # Fix (worker race condition review issue): SELECT ... FOR UPDATE SKIP LOCKED
+    # ensures that if two scheduler workers run simultaneously, the second worker
+    # skips every row the first worker has already locked for processing -- the
+    # same pattern the credential_expiry job uses (conditional UPDATE RETURNING)
+    # to make concurrent runs safe. SKIP LOCKED (not plain FOR UPDATE) avoids
+    # blocking: a second worker gets an empty result and exits cleanly rather
+    # than waiting for the first to commit. The existing idempotency guards
+    # (breached_at IS NULL selection, monotonic escalation_stage) remain in
+    # place as a belt-and-suspenders layer.
     candidates = session.exec(
-        select(Referral).where(
+        select(Referral)
+        .where(
             Referral.due_at.is_not(None),  # type: ignore[union-attr]
             Referral.status.not_in(non_open_statuses),  # type: ignore[attr-defined]
         )
+        .with_for_update(skip_locked=True)
     ).all()
 
     checked = len(candidates)
