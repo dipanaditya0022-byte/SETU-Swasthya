@@ -23,58 +23,49 @@ Future<void> pumpRegistryScreen(WidgetTester tester) async {
 }
 
 void main() {
-  testWidgets('renders staff sign up and email field', (
+  testWidgets('live mode starts with mobile authentication only', (
     WidgetTester tester,
   ) async {
     await pumpLoginScreen(tester);
 
-    expect(find.text('SETU'), findsOneWidget);
-    expect(find.text('Swasthya'), findsOneWidget);
-    expect(find.text('Digital Health & Care Management'), findsOneWidget);
-    expect(find.text('STAFF SIGN UP'), findsOneWidget);
-    expect(find.text('Create your account'), findsOneWidget);
+    expect(find.text('Welcome to SETU-Swasthya'), findsOneWidget);
+    expect(find.text('Mobile Number'), findsOneWidget);
+    expect(find.text('Send OTP'), findsOneWidget);
+    expect(find.byKey(const ValueKey('email-field')), findsNothing);
+    expect(find.text('STAFF SIGN UP'), findsNothing);
+    expect(find.text('Six-digit OTP'), findsNothing);
+  });
+
+  testWidgets('live login rejects a mobile without international format', (
+    WidgetTester tester,
+  ) async {
+    await pumpLoginScreen(tester);
+    await tester.enterText(find.byType(TextFormField), '9000000106');
+    await tester.tap(find.text('Send OTP'));
+    await tester.pump();
     expect(
-      find.text(
-        'Sign up with your Gmail address to access the SETU-Swasthya workspace.',
-      ),
+      find.text('Use international format, for example +919000000106'),
       findsOneWidget,
     );
-    expect(find.byKey(const ValueKey('email-field')), findsOneWidget);
-    expect(find.byKey(const ValueKey('send-otp-button')), findsOneWidget);
   });
 
-  testWidgets('rejects an invalid email address', (WidgetTester tester) async {
-    await pumpLoginScreen(tester);
-    await tester.enterText(find.byKey(const ValueKey('email-field')), 'staff');
-    await tester.tap(find.text('Create account & send OTP'));
-    await tester.pump();
-    expect(find.text('Enter a valid email address.'), findsOneWidget);
-  });
-
-  testWidgets('shows validation feedback for empty email', (
+  testWidgets('live login shows validation feedback for empty mobile', (
     WidgetTester tester,
   ) async {
     await pumpLoginScreen(tester);
-    await tester.tap(find.text('Create account & send OTP'));
+    await tester.tap(find.text('Send OTP'));
     await tester.pump();
-    expect(find.text('Enter a valid email address.'), findsOneWidget);
+    expect(find.text('Please enter your mobile number'), findsOneWidget);
   });
 
-  testWidgets('real mode requires a configured email OTP backend', (
+  testWidgets('live login does not expose password or email inputs', (
     WidgetTester tester,
   ) async {
     await pumpLoginScreen(tester);
-    await tester.enterText(
-      find.byKey(const ValueKey('email-field')),
-      'staff@example.com',
-    );
-    await tester.tap(find.text('Create account & send OTP'));
-    await tester.pumpAndSettle();
-    expect(
-      find.text('API_BASE_URL is required for email OTP.'),
-      findsOneWidget,
-    );
-    expect(find.byKey(const ValueKey('otp-field')), findsNothing);
+
+    expect(find.text('Password'), findsNothing);
+    expect(find.text('Email address'), findsNothing);
+    expect(find.byKey(const ValueKey('email-field')), findsNothing);
   });
 
   testWidgets('renders Home content and empty activity state', (

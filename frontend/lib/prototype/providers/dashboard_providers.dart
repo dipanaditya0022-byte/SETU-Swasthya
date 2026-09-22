@@ -22,7 +22,11 @@ final dashboardRepositoryProvider = Provider<DashboardRepository>(
       DashboardRepositoryImpl(ref.watch(dashboardRemoteDataSourceProvider)),
 );
 
-final dashboardProvider = FutureProvider<DashboardResponse>((ref) {
+final dashboardRequestTimeoutProvider = Provider<Duration>(
+  (ref) => const Duration(seconds: 12),
+);
+
+final dashboardProvider = FutureProvider<DashboardResponse>((ref) async {
   if (prototypeDemoMode) return const DashboardResponse({});
   final configuration = ref.watch(dashboardConfigurationProvider);
   if (!configuration.isConfigured) {
@@ -30,5 +34,11 @@ final dashboardProvider = FutureProvider<DashboardResponse>((ref) {
   }
   return ref
       .watch(dashboardRepositoryProvider)
-      .getFacilityDashboard(configuration.orgUnitId);
-});
+      .getFacilityDashboard(configuration.orgUnitId)
+      .timeout(
+        ref.watch(dashboardRequestTimeoutProvider),
+        onTimeout: () => throw const ApiTimeoutException(
+          message: 'The dashboard request timed out.',
+        ),
+      );
+}, retry: (retryCount, error) => null);

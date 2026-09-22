@@ -13,7 +13,7 @@ class ReportsScreen extends StatefulWidget {
 }
 
 class _ReportsScreenState extends State<ReportsScreen> {
-  final _apiService = ApiService();
+  final _apiService = ApiService.instance;
 
   int _totalPatients = 0;
   int _totalReferrals = 0;

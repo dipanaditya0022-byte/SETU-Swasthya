@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../api_service.dart';
 import '../../providers/prototype_session_provider.dart';
 
 class AuthenticatedShell extends StatelessWidget {
@@ -38,31 +39,34 @@ class AuthenticatedShell extends StatelessWidget {
               )
             : null,
         title: Text(isPatientProfile ? 'Patient Profile' : 'SETU-Swasthya'),
-        actions: prototypeDemoMode
-            ? [
-                Center(
-                  child: Padding(
-                    padding: const EdgeInsets.only(right: 12),
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: Colors.deepOrange,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Padding(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        child: Text(
-                          'DEMO MODE',
-                          style: TextStyle(color: Colors.white, fontSize: 11),
-                        ),
-                      ),
+        actions: [
+          if (prototypeDemoMode)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Colors.deepOrange,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    child: Text(
+                      'DEMO MODE',
+                      style: TextStyle(color: Colors.white, fontSize: 11),
                     ),
                   ),
                 ),
-              ]
-            : null,
+              ),
+            )
+          else
+            IconButton(
+              key: const ValueKey('logout-button'),
+              tooltip: 'Sign out',
+              onPressed: () => _logout(context),
+              icon: const Icon(Icons.logout),
+            ),
+        ],
       ),
       body: child,
       bottomNavigationBar: NavigationBar(
@@ -77,5 +81,10 @@ class AuthenticatedShell extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _logout(BuildContext context) async {
+    await ApiService.instance.logout();
+    if (context.mounted) context.go('/login');
   }
 }

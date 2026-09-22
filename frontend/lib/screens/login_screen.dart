@@ -1,82 +1,127 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../api_service.dart';
-import 'home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  const LoginScreen({this.apiService, super.key});
+
+  final ApiService? apiService;
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _formKey = GlobalKey<FormState>();
-
+  final _mobileFieldKey = GlobalKey<FormFieldState<String>>();
+  final _otpFieldKey = GlobalKey<FormFieldState<String>>();
   final _mobileController = TextEditingController();
-  final _passwordController = TextEditingController();
+  final _otpController = TextEditingController();
 
-  final ApiService _apiService = ApiService();
+  late final ApiService _apiService;
+  bool _otpRequested = false;
+  bool _isRequestingOtp = false;
+  bool _isVerifyingOtp = false;
+  String? _errorMessage;
 
-  bool _isLoading = false;
-  bool _obscurePassword = true;
+  bool get _isBusy => _isRequestingOtp || _isVerifyingOtp;
+
+  @override
+  void initState() {
+    super.initState();
+    _apiService = widget.apiService ?? ApiService.instance;
+  }
 
   @override
   void dispose() {
     _mobileController.dispose();
-    _passwordController.dispose();
+    _otpController.dispose();
     super.dispose();
   }
 
-  Future<void> _login() async {
-    if (!_formKey.currentState!.validate()) {
+  String? _validateMobile(String? value) {
+    final mobile = value?.trim() ?? '';
+    if (mobile.isEmpty) return 'Please enter your mobile number';
+    if (!RegExp(r'^\+[1-9]\d{9,14}$').hasMatch(mobile)) {
+      return 'Use international format, for example +919000000106';
+    }
+    return null;
+  }
+
+  String? _validateOtp(String? value) {
+    final otp = value?.trim() ?? '';
+    if (!RegExp(r'^\d{6}$').hasMatch(otp)) {
+      return 'Enter the six-digit OTP';
+    }
+    return null;
+  }
+
+  Future<void> _requestOtp() async {
+    if (_isBusy || !(_mobileFieldKey.currentState?.validate() ?? false)) {
       return;
     }
 
     setState(() {
-      _isLoading = true;
+      _isRequestingOtp = true;
+      _errorMessage = null;
     });
-
-    String? errorMessage;
-    bool loginSuccessful = false;
 
     try {
-      final session = await _apiService.login(
-        mobile: _mobileController.text.trim(),
-        password: _passwordController.text,
-      );
-
-      if (session.accessToken.isNotEmpty) {
-        loginSuccessful = true;
-      }
-    } on MfaRequiredException {
-      errorMessage = 'Additional verification is required for this account.';
-    } on AuthenticationException catch (e) {
-      errorMessage = e.message;
+      await _apiService.requestLoginOtp(_mobileController.text.trim());
+      if (!mounted) return;
+      setState(() {
+        _otpRequested = true;
+        _otpController.clear();
+      });
+    } on AuthenticationException catch (error) {
+      if (mounted) setState(() => _errorMessage = error.message);
     } catch (_) {
-      errorMessage = 'Unable to sign in. Please check your credentials or server connection.';
+      if (mounted) {
+        setState(
+          () => _errorMessage =
+              'Unable to send the OTP. Please check the server connection.',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isRequestingOtp = false);
     }
+  }
 
-    if (!mounted) {
-      return;
-    }
+  Future<void> _verifyOtp() async {
+    if (_isBusy || !(_otpFieldKey.currentState?.validate() ?? false)) return;
 
     setState(() {
-      _isLoading = false;
+      _isVerifyingOtp = true;
+      _errorMessage = null;
     });
 
-    if (loginSuccessful) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
+    try {
+      await _apiService.verifyLoginOtp(
+        mobile: _mobileController.text.trim(),
+        otp: _otpController.text.trim(),
       );
-      return;
+      if (mounted) context.go('/home');
+    } on AuthenticationException catch (error) {
+      if (mounted) setState(() => _errorMessage = error.message);
+    } catch (_) {
+      if (mounted) {
+        setState(
+          () => _errorMessage =
+              'Unable to sign in. Please check the OTP or server connection.',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isVerifyingOtp = false);
     }
+  }
 
-    if (errorMessage != null) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(errorMessage)));
-    }
+  void _changeMobile() {
+    if (_isBusy) return;
+    setState(() {
+      _otpRequested = false;
+      _otpController.clear();
+      _errorMessage = null;
+    });
   }
 
   @override
@@ -97,165 +142,175 @@ class _LoginScreenState extends State<LoginScreen> {
           padding: const EdgeInsets.all(24),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 480),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Container(
-                    width: 76,
-                    height: 76,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFE5F1F2),
-                      borderRadius: BorderRadius.circular(18),
-                    ),
-                    child: const Icon(
-                      Icons.health_and_safety_outlined,
-                      size: 42,
-                      color: Color(0xFF075965),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Container(
+                  width: 76,
+                  height: 76,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE5F1F2),
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: const Icon(
+                    Icons.health_and_safety_outlined,
+                    size: 42,
+                    color: Color(0xFF075965),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  'Welcome to SETU-Swasthya',
+                  style: TextStyle(
+                    fontSize: 25,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF172124),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _otpRequested
+                      ? 'Enter the OTP sent for ${_mobileController.text.trim()}.'
+                      : 'Sign in with the mobile number linked to your staff account.',
+                  style: const TextStyle(
+                    color: Color(0xFF687477),
+                    fontSize: 14,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 30),
+                TextFormField(
+                  key: _mobileFieldKey,
+                  controller: _mobileController,
+                  enabled: !_otpRequested && !_isBusy,
+                  keyboardType: TextInputType.phone,
+                  textInputAction: _otpRequested
+                      ? TextInputAction.next
+                      : TextInputAction.done,
+                  onFieldSubmitted: (_) {
+                    if (!_otpRequested) _requestOtp();
+                  },
+                  autofillHints: const [AutofillHints.telephoneNumber],
+                  decoration: InputDecoration(
+                    labelText: 'Mobile Number',
+                    hintText: '+919000000106',
+                    prefixIcon: const Icon(Icons.phone_outlined),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
                     ),
                   ),
-
-                  const SizedBox(height: 20),
-
-                  const Text(
-                    'Welcome to SETU-Swasthya',
-                    style: TextStyle(
-                      fontSize: 25,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF172124),
-                    ),
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  const Text(
-                    'Sign in to access your health service workspace.',
-                    style: TextStyle(
-                      color: Color(0xFF687477),
-                      fontSize: 14,
-                      height: 1.4,
-                    ),
-                  ),
-
-                  const SizedBox(height: 30),
-
-                  TextFormField(
-                    controller: _mobileController,
-                    keyboardType: TextInputType.phone,
-                    textInputAction: TextInputAction.next,
-                    decoration: InputDecoration(
-                      labelText: 'Mobile Number',
-                      hintText: '+919000000001',
-                      prefixIcon: const Icon(Icons.phone_outlined),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    validator: (value) {
-                      final mobile = value?.trim() ?? '';
-
-                      if (mobile.isEmpty) {
-                        return 'Please enter your mobile number';
-                      }
-
-                      if (mobile.length < 10) {
-                        return 'Enter a valid mobile number';
-                      }
-
-                      return null;
-                    },
-                  ),
-
+                  validator: _validateMobile,
+                ),
+                if (_otpRequested) ...[
                   const SizedBox(height: 16),
-
                   TextFormField(
-                    controller: _passwordController,
-                    obscureText: _obscurePassword,
+                    key: _otpFieldKey,
+                    controller: _otpController,
+                    enabled: !_isBusy,
+                    keyboardType: TextInputType.number,
                     textInputAction: TextInputAction.done,
-                    onFieldSubmitted: (_) {
-                      if (!_isLoading) {
-                        _login();
-                      }
-                    },
+                    autofillHints: const [AutofillHints.oneTimeCode],
+                    maxLength: 6,
+                    obscureText: true,
+                    onFieldSubmitted: (_) => _verifyOtp(),
                     decoration: InputDecoration(
-                      labelText: 'Password',
-                      prefixIcon: const Icon(Icons.lock_outline),
+                      labelText: 'Six-digit OTP',
+                      prefixIcon: const Icon(Icons.password_outlined),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      suffixIcon: IconButton(
-                        tooltip: _obscurePassword
-                            ? 'Show password'
-                            : 'Hide password',
-                        icon: Icon(
-                          _obscurePassword
-                              ? Icons.visibility_outlined
-                              : Icons.visibility_off_outlined,
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            _obscurePassword = !_obscurePassword;
-                          });
-                        },
+                    ),
+                    validator: _validateOtp,
+                  ),
+                ],
+                const SizedBox(height: 24),
+                SizedBox(
+                  height: 52,
+                  child: FilledButton.icon(
+                    key: ValueKey(
+                      _otpRequested
+                          ? 'verify-login-otp-button'
+                          : 'request-login-otp-button',
+                    ),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFF075965),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
                       ),
                     ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter your password';
-                      }
-
-                      return null;
-                    },
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  SizedBox(
-                    height: 52,
-                    child: FilledButton.icon(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFF075965),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      onPressed: _isLoading ? null : _login,
-                      icon: _isLoading
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Icon(Icons.login),
-                      label: Text(
-                        _isLoading ? 'Signing in...' : 'Sign In',
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                        ),
+                    onPressed: _isBusy
+                        ? null
+                        : (_otpRequested ? _verifyOtp : _requestOtp),
+                    icon: _isBusy
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : Icon(
+                            _otpRequested
+                                ? Icons.login
+                                : Icons.send_to_mobile_outlined,
+                          ),
+                    label: Text(
+                      _isRequestingOtp
+                          ? 'Sending OTP...'
+                          : _isVerifyingOtp
+                          ? 'Verifying...'
+                          : _otpRequested
+                          ? 'Verify OTP & Sign In'
+                          : 'Send OTP',
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ),
-
-                  const SizedBox(height: 16),
-
-                  const Text(
-                    'Staff accounts are provisioned by authorised officials. '
-                    'There is no public staff registration.',
+                ),
+                if (_otpRequested) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      TextButton(
+                        key: const ValueKey('resend-login-otp-button'),
+                        onPressed: _isBusy ? null : _requestOtp,
+                        child: const Text('Resend OTP'),
+                      ),
+                      TextButton(
+                        onPressed: _isBusy ? null : _changeMobile,
+                        child: const Text('Change mobile'),
+                      ),
+                    ],
+                  ),
+                ],
+                if (_errorMessage != null) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    _errorMessage!,
+                    key: const ValueKey('login-error-message'),
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: Color(0xFF7A8588),
-                      fontSize: 11,
-                      height: 1.4,
+                      color: Theme.of(context).colorScheme.error,
                     ),
                   ),
                 ],
-              ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Staff accounts are provisioned by authorised officials. '
+                  'There is no public staff registration.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Color(0xFF7A8588),
+                    fontSize: 11,
+                    height: 1.4,
+                  ),
+                ),
+              ],
             ),
           ),
         ),

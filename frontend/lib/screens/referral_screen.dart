@@ -56,7 +56,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
   final _formKey = GlobalKey<FormState>();
 
   final _reasonController = TextEditingController();
-  final _apiService = ApiService();
+  final _apiService = ApiService.instance;
 
   List<_FacilityOption> _facilities = const [];
   String? _selectedFacilityName;

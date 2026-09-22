@@ -24,7 +24,7 @@ class TriageDispositionScreen extends StatefulWidget {
 }
 
 class _TriageDispositionScreenState extends State<TriageDispositionScreen> {
-  final ApiService _apiService = ApiService();
+  final ApiService _apiService = ApiService.instance;
   bool _isSubmitting = true;
   bool _hasSubmitError = false;
   String? _submitError;

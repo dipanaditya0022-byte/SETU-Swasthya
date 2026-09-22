@@ -8,7 +8,7 @@ import 'models/patient.dart';
 import 'api_service.dart';
 
 class SyncService {
-  final ApiService _apiService = ApiService();
+  final ApiService _apiService = ApiService.instance;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   bool _isSyncing = false;
 

@@ -36,7 +36,7 @@ class _PatientListScreenState extends State<PatientListScreen> {
     });
 
     try {
-      final serverPatients = await ApiService().getPatients();
+      final serverPatients = await ApiService.instance.getPatients();
       final patientBox = Hive.box<PatientLocal>('patients');
 
       for (final item in serverPatients) {
