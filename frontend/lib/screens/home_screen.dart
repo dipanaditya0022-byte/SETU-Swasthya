@@ -3,7 +3,6 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:go_router/go_router.dart';
 
 import '../models/patient.dart';
-import 'facility_dashboard_screen.dart';
 import 'patient_list_screen.dart';
 import 'profile_screen.dart';
 import 'registration_screen.dart';
@@ -83,10 +82,7 @@ class _HomeTab extends StatelessWidget {
   }
 
   void _openDashboard(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const FacilityDashboardScreen()),
-    );
+    context.go('/dashboard');
   }
 
   void _openRegistry(BuildContext context) {

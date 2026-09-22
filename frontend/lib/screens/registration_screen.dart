@@ -17,7 +17,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   static const String _facilityId = '5623cb23-b615-4eeb-acdb-cc5b5159b639';
 
   final _formKey = GlobalKey<FormState>();
-  final ApiService _apiService = ApiService();
+  final ApiService _apiService = ApiService.instance;
 
   final _nameController = TextEditingController();
   final _dobController = TextEditingController();

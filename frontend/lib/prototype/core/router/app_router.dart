@@ -11,6 +11,7 @@ import '../../screens/registry/register_patient_screen.dart';
 import '../../screens/reports/reports_screen.dart';
 import '../../screens/settings/settings_screen.dart';
 import '../../screens/triage/triage_screen.dart';
+import '../../providers/prototype_session_provider.dart';
 import '../widgets/authenticated_shell.dart';
 import '../../../screens/home_screen.dart' as team;
 import '../../../screens/login_screen.dart' as team_auth;
@@ -19,7 +20,12 @@ abstract final class AppRouter {
   static final router = GoRouter(
     initialLocation: '/login',
     routes: [
-      GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
+      GoRoute(
+        path: '/login',
+        builder: (context, state) => prototypeDemoMode
+            ? const LoginScreen()
+            : const team_auth.LoginScreen(),
+      ),
       GoRoute(
         path: '/team',
         builder: (context, state) => const team.HomeScreen(),

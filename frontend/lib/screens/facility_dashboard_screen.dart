@@ -14,7 +14,7 @@ class FacilityDashboardScreen extends StatefulWidget {
 }
 
 class _FacilityDashboardScreenState extends State<FacilityDashboardScreen> {
-  final _apiService = ApiService();
+  final _apiService = ApiService.instance;
   List<Map<String, dynamic>> _backendReferrals = const [];
   Map<String, String> _facilityNames = const {};
   bool _isLoadingReferrals = true;

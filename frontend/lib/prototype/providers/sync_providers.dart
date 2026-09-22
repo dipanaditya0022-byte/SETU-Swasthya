@@ -46,12 +46,14 @@ class SyncState {
     this.pendingCount = 0,
     this.online,
     this.message,
+    this.lastSynchronizedAt,
   });
 
   final SyncStatus status;
   final int pendingCount;
   final bool? online;
   final String? message;
+  final DateTime? lastSynchronizedAt;
 
   bool get isSyncing => status == SyncStatus.syncing;
 }
@@ -76,12 +78,16 @@ class SyncController extends Notifier<SyncState> {
     state = SyncState(
       status: SyncStatus.syncing,
       pendingCount: service.pendingCount,
+      lastSynchronizedAt: state.lastSynchronizedAt,
     );
     final result = await service.syncPending();
     state = SyncState(
       status: result.message == null ? SyncStatus.success : SyncStatus.error,
       pendingCount: service.pendingCount,
       message: result.message,
+      lastSynchronizedAt: result.message == null
+          ? DateTime.now()
+          : state.lastSynchronizedAt,
     );
   }
 }

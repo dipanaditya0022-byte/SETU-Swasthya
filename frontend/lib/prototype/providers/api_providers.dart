@@ -1,18 +1,14 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../api_service.dart';
 import '../core/network/api_client.dart';
 import '../core/storage/local_database.dart';
 import '../repositories/patient_repository.dart';
 import '../services/patient_remote_data_source.dart';
-import 'email_auth_provider.dart';
-import 'prototype_session_provider.dart';
 import 'sync_providers.dart';
 
 final apiClientProvider = Provider<ApiClient>(
-  (ref) => ApiClient(
-    accessTokenProvider: () =>
-        prototypeDemoMode ? null : ref.read(emailAuthProvider).accessToken,
-  ),
+  (ref) => ApiClient(dio: ApiService.instance.dio),
 );
 
 final patientRemoteDataSourceProvider = Provider<PatientRemoteDataSource>(

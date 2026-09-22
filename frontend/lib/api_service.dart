@@ -6,25 +6,25 @@ import 'models/auth_session.dart';
 import 'models/current_user.dart';
 
 class ApiService {
-  final Dio dio = Dio(
-    BaseOptions(
-      baseUrl: ApiConfig.baseUrl,
-      connectTimeout: const Duration(seconds: 5),
-      receiveTimeout: const Duration(seconds: 10),
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-    ),
-  );
-
-  final FlutterSecureStorage storage = const FlutterSecureStorage();
-
-  ApiService() {
-    dio.interceptors.add(
+  ApiService({Dio? dio, FlutterSecureStorage? storage})
+    : dio =
+          dio ??
+          Dio(
+            BaseOptions(
+              baseUrl: ApiConfig.baseUrl,
+              connectTimeout: const Duration(seconds: 5),
+              receiveTimeout: const Duration(seconds: 10),
+              headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+              },
+            ),
+          ),
+      storage = storage ?? const FlutterSecureStorage() {
+    this.dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
-          final token = await storage.read(key: 'access_token');
+          final token = await this.storage.read(key: 'access_token');
 
           if (token != null && token.isNotEmpty) {
             options.headers['Authorization'] = 'Bearer $token';
@@ -35,6 +35,14 @@ class ApiService {
       ),
     );
   }
+
+  static final ApiService instance = ApiService();
+
+  final Dio dio;
+  final FlutterSecureStorage storage;
+  bool _hasAuthenticatedSession = false;
+
+  bool get hasAuthenticatedSession => _hasAuthenticatedSession;
 
   static String? _extractErrorMessage(dynamic data) {
     if (data is Map) {
@@ -55,6 +63,66 @@ class ApiService {
     }
 
     return null;
+  }
+
+  Never _throwAuthenticationException(
+    DioException error, {
+    required String fallbackMessage,
+  }) {
+    final backendMessage = _extractErrorMessage(error.response?.data);
+
+    if (error.type == DioExceptionType.connectionTimeout ||
+        error.type == DioExceptionType.receiveTimeout ||
+        error.type == DioExceptionType.sendTimeout ||
+        error.type == DioExceptionType.connectionError ||
+        error.type == DioExceptionType.unknown) {
+      throw const AuthenticationException(
+        'Unable to reach the server. Please check your network and try again.',
+      );
+    }
+
+    throw AuthenticationException(backendMessage ?? fallbackMessage);
+  }
+
+  Future<void> requestLoginOtp(String mobile) async {
+    try {
+      await dio.post<void>(
+        '/auth/otp/request',
+        data: {'mobile': mobile, 'purpose': 'LOGIN'},
+      );
+    } on DioException catch (error) {
+      _throwAuthenticationException(
+        error,
+        fallbackMessage: 'Unable to send the OTP. Please try again.',
+      );
+    }
+  }
+
+  Future<AuthSession> verifyLoginOtp({
+    required String mobile,
+    required String otp,
+  }) async {
+    try {
+      final response = await dio.post<Map<String, dynamic>>(
+        '/auth/otp/verify',
+        data: {'mobile': mobile, 'otp': otp},
+      );
+      final otpToken = response.data?['otp_token'];
+      if (otpToken is! String || otpToken.isEmpty) {
+        throw const AuthenticationException(
+          'OTP verification did not return a login token.',
+        );
+      }
+
+      return await login(mobile: mobile, otpToken: otpToken);
+    } on AuthenticationException {
+      rethrow;
+    } on DioException catch (error) {
+      _throwAuthenticationException(
+        error,
+        fallbackMessage: 'Unable to verify the OTP. Please try again.',
+      );
+    }
   }
 
   Future<AuthSession> login({
@@ -89,6 +157,11 @@ class ApiService {
       }
 
       final session = AuthSession.fromJson(data);
+      if (session.accessToken.isEmpty) {
+        throw const AuthenticationException(
+          'Sign-in response did not contain an access token.',
+        );
+      }
 
       await storage.write(key: 'access_token', value: session.accessToken);
 
@@ -96,30 +169,16 @@ class ApiService {
         await storage.write(key: 'refresh_token', value: session.refreshToken!);
       }
 
+      _hasAuthenticatedSession = true;
       return session;
+    } on AuthenticationException {
+      rethrow;
     } on MfaRequiredException {
       rethrow;
     } on DioException catch (error) {
-      final backendMessage = _extractErrorMessage(error.response?.data);
-
-      if (error.response?.statusCode == 401 ||
-          error.response?.statusCode == 403) {
-        throw AuthenticationException(
-          backendMessage ?? 'Mobile number or password is not correct.',
-        );
-      }
-
-      if (error.type == DioExceptionType.connectionTimeout ||
-          error.type == DioExceptionType.receiveTimeout ||
-          error.type == DioExceptionType.connectionError ||
-          error.type == DioExceptionType.unknown) {
-        throw const AuthenticationException(
-          'Unable to reach the server. Please check your network and try again.',
-        );
-      }
-
-      throw AuthenticationException(
-        backendMessage ?? 'Unable to sign in. Please try again.',
+      _throwAuthenticationException(
+        error,
+        fallbackMessage: 'Unable to sign in. Please try again.',
       );
     }
   }
@@ -496,6 +555,17 @@ class ApiService {
   Future<void> logoutLocal() async {
     await storage.delete(key: 'access_token');
     await storage.delete(key: 'refresh_token');
+    _hasAuthenticatedSession = false;
+  }
+
+  Future<void> logout() async {
+    try {
+      await dio.post<void>('/auth/logout');
+    } on DioException {
+      // Local credentials must still be removed if the server is unreachable.
+    } finally {
+      await logoutLocal();
+    }
   }
 }
 
