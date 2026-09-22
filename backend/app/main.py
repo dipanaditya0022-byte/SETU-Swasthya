@@ -111,6 +111,10 @@ from app.api.routes.dashboard import router as dashboard_router
 
 app.include_router(dashboard_router)
 
+from app.api.routes.facilities import router as facilities_router
+
+app.include_router(facilities_router)
+
 
 # ============================================================
 # Body-size limit -- 413 PAYLOAD_TOO_LARGE over 1 MB. Pure ASGI
@@ -246,14 +250,33 @@ register_rate_limiting(app)
 _cors_origins = [
     origin.strip() for origin in os.environ.get("CORS_ORIGINS", "").split(",") if origin.strip()
 ]
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=_cors_origins,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
-    expose_headers=["X-Request-ID"],
-)
+_cors_kwargs: dict = {
+    "allow_credentials": True,
+    "allow_methods": ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+    "allow_headers": ["Authorization", "Content-Type", "X-Request-ID"],
+    "expose_headers": ["X-Request-ID"],
+}
+if os.environ.get("ENVIRONMENT", "development") == "production":
+    _cors_kwargs["allow_origins"] = _cors_origins
+else:
+    # Dev convenience ONLY (ENVIRONMENT != "production"): match any
+    # localhost/127.0.0.1 origin regardless of port, since a dev's
+    # frontend dev server (e.g. `flutter run -d chrome`, which picks a
+    # random port per launch unless pinned) or a fixed-but-unpredictable
+    # local port collision shouldn't require editing CORS_ORIGINS every
+    # time. Still not a wildcard: allow_origin_regex makes Starlette
+    # validate the request's actual Origin header against this pattern
+    # and echo back only that exact origin, which browsers accept with
+    # allow_credentials=True (unlike allow_origins=["*"], which they
+    # reject outright when credentials are involved). CORS_ORIGINS still
+    # applies alongside the regex if set, for anyone who wants a fixed
+    # allowlist even in dev. MUST NOT reach production: flip
+    # ENVIRONMENT=production (and set a real CORS_ORIGINS) before any
+    # real deploy, or this regex stays live.
+    _cors_kwargs["allow_origin_regex"] = r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$"
+    if _cors_origins:
+        _cors_kwargs["allow_origins"] = _cors_origins
+app.add_middleware(CORSMiddleware, **_cors_kwargs)
 
 # MUST be the LAST middleware registration in this file -- see
 # RequestIDMiddleware's own docstring (app/core/errors.py) for why it

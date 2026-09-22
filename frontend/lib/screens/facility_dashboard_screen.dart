@@ -19,11 +19,26 @@ class _FacilityDashboardScreenState extends State<FacilityDashboardScreen> {
   bool _isLoadingReferrals = true;
   String? _referralLoadError;
   final Set<String> _updatingReferralIds = <String>{};
+  String? _currentUserId;
 
   @override
   void initState() {
     super.initState();
+    _loadCurrentUser();
     _loadBackendReferrals();
+  }
+
+  Future<void> _loadCurrentUser() async {
+    try {
+      final user = await _apiService.getCurrentUser();
+      if (!mounted) return;
+      setState(() {
+        _currentUserId = user.id;
+      });
+    } catch (_) {
+      // Non-fatal: only blocks the arrival/consulted actions below, which
+      // already guard on _currentUserId being null (see _buildStatusActions).
+    }
   }
 
   Future<void> _loadBackendReferrals() async {
@@ -155,24 +170,47 @@ class _FacilityDashboardScreenState extends State<FacilityDashboardScreen> {
     return [...backendCards, ...localCards];
   }
 
+  // Backend's real state machine (app/models/referral_state.py) -- NOT the
+  // 4-stage INITIATED/ACCEPTED/IN_PROGRESS/COMPLETED model this screen used
+  // to assume. That model didn't exist anywhere in the backend (confirmed
+  // live: PATCH .../status?status=ACCEPTED 422s, "ACCEPTED" isn't a valid
+  // ReferralState member at all), so every tap here used to fail. Mapped
+  // onto real, ALLOWED_TRANSITIONS-valid next states instead, each carrying
+  // whatever TRANSITION_REQUIRED_FIELDS demands for that transition.
+  static const Set<String> _cancellableStatuses = {
+    'INITIATED', 'SLOT_BOOKED', 'TRANSPORT_ARRANGED', 'ARRIVED', 'RESCHEDULED',
+  };
+
   List<Widget> _buildStatusActions(Map<String, dynamic> referral) {
     final referralId = (referral['id'] ?? '').toString().trim();
     final status = (referral['status'] ?? '').toString().toUpperCase();
-    if (referralId.isEmpty || status == 'COMPLETED' || status == 'CANCELLED') {
+    if (referralId.isEmpty) {
       return const [];
     }
 
     String? nextStatus;
     String? actionLabel;
+    Map<String, dynamic>? Function()? buildBody;
+
     if (status == 'INITIATED') {
-      nextStatus = 'ACCEPTED';
+      nextStatus = 'SLOT_BOOKED';
       actionLabel = 'Accept';
-    } else if (status == 'ACCEPTED') {
-      nextStatus = 'IN_PROGRESS';
-      actionLabel = 'In Progress';
-    } else if (status == 'IN_PROGRESS') {
-      nextStatus = 'COMPLETED';
-      actionLabel = 'Complete';
+      buildBody = () => {
+            'slot_datetime': DateTime.now().toUtc().toIso8601String(),
+            'destination_org_unit_id': referral['destination_facility_id'],
+          };
+    } else if (status == 'SLOT_BOOKED' && _currentUserId != null) {
+      nextStatus = 'ARRIVED';
+      actionLabel = 'Mark Arrived';
+      buildBody = () => {'arrival_confirmed_by': _currentUserId};
+    } else if (status == 'ARRIVED' && _currentUserId != null) {
+      nextStatus = 'CONSULTED';
+      actionLabel = 'Mark Consulted';
+      buildBody = () => {'consulted_by_user_id': _currentUserId};
+    } else if (status == 'CONSULTED') {
+      nextStatus = 'CLOSED';
+      actionLabel = 'Close';
+      buildBody = () => null;
     }
 
     final isUpdating = _updatingReferralIds.contains(referralId);
@@ -184,24 +222,58 @@ class _FacilityDashboardScreenState extends State<FacilityDashboardScreen> {
               : () => _updateReferralStatus(
                     referralId: referralId,
                     status: nextStatus!,
+                    data: buildBody!(),
                   ),
           child: Text(actionLabel!),
         ),
-      TextButton(
-        onPressed: isUpdating
-            ? null
-            : () => _updateReferralStatus(
-                  referralId: referralId,
-                  status: 'CANCELLED',
-                ),
-        child: const Text('Cancel'),
-      ),
+      if (_cancellableStatuses.contains(status))
+        TextButton(
+          onPressed: isUpdating ? null : () => _cancelReferral(referralId),
+          child: const Text('Cancel'),
+        ),
     ];
+  }
+
+  Future<void> _cancelReferral(String referralId) async {
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        final controller = TextEditingController();
+        return AlertDialog(
+          title: const Text('Cancel referral'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            decoration: const InputDecoration(
+              labelText: 'Reason for cancellation',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Back'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(controller.text.trim()),
+              child: const Text('Cancel referral'),
+            ),
+          ],
+        );
+      },
+    );
+    if (reason == null || reason.isEmpty) return;
+
+    await _updateReferralStatus(
+      referralId: referralId,
+      status: 'CANCELLED',
+      data: {'cancellation_reason': reason},
+    );
   }
 
   Future<void> _updateReferralStatus({
     required String referralId,
     required String status,
+    Map<String, dynamic>? data,
   }) async {
     if (_updatingReferralIds.contains(referralId)) return;
     setState(() {
@@ -212,6 +284,7 @@ class _FacilityDashboardScreenState extends State<FacilityDashboardScreen> {
       await _apiService.updateReferralStatus(
         referralId: referralId,
         status: status,
+        body: data,
       );
       await _loadBackendReferrals();
       if (!mounted) return;

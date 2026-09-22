@@ -628,17 +628,28 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
   Widget _buildGenderOption(String gender) {
   return Expanded(
-    child: RadioListTile<String>(
-      value: gender,
-      title: Text(
-        gender,
-        style: const TextStyle(
-          fontSize: 12,
+    // RadioListTile paints its ink splash/selection highlight on the
+    // nearest Material ancestor -- _buildSection's own white-background
+    // Container (not a Material) sits between this and the Scaffold,
+    // which made those effects invisible (confirmed live via Flutter's
+    // own "ListTile background color or ink splashes may be invisible"
+    // assertion). `type: MaterialType.transparency` provides that
+    // Material surface locally without painting any visible background
+    // of its own, so the section's white card styling is untouched.
+    child: Material(
+      type: MaterialType.transparency,
+      child: RadioListTile<String>(
+        value: gender,
+        title: Text(
+          gender,
+          style: const TextStyle(
+            fontSize: 12,
+          ),
         ),
+        contentPadding: EdgeInsets.zero,
+        dense: true,
+        activeColor: const Color(0xFF075965),
       ),
-      contentPadding: EdgeInsets.zero,
-      dense: true,
-      activeColor: const Color(0xFF075965),
     ),
   );
 }

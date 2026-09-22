@@ -419,11 +419,13 @@ class ApiService {
   Future<Map<String, dynamic>> updateReferralStatus({
     required String referralId,
     required String status,
+    Map<String, dynamic>? body,
   }) async {
     try {
       final response = await dio.patch(
         '/referrals/$referralId/status',
         queryParameters: {'status': status},
+        data: body,
       );
       final data = response.data;
 

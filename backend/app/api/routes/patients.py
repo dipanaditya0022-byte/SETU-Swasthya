@@ -88,8 +88,9 @@ from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID
 
+import sqlalchemy as sa
 from fastapi import APIRouter, Depends, HTTPException
-from sqlmodel import Session, text
+from sqlmodel import Session, select, text
 
 from app.core.authz import org_unit_is_within_scope, require
 from app.core.crypto import _MOBILE_RE, blind_index, encrypt_field, mask_mobile
@@ -240,6 +241,62 @@ def create_patient(
     # would otherwise return an empty body. Re-refresh before returning.
     session.refresh(patient)
     return patient
+
+
+@router.get("/", response_model=list[Patient])
+def list_patients(
+    limit: int = 50,
+    offset: int = 0,
+    current_user=Depends(require("patient:read")),
+    session: Session = Depends(get_session),
+):
+    """Additive (frontend-integration gap): the Flutter client's patient
+    list/reports screens call GET /patients/ expecting a scoped list, but
+    only POST /patients/ and GET /patients/{id} existed here (confirmed
+    live as a 405 Method Not Allowed -- the path "/patients/" already
+    matches the POST route, just not this method). Same scope-filter
+    shape as app/api/routes/users.py's own list_users and this codebase's
+    referrals.py's own /exceptions: JOIN org_units, path-prefix match
+    against the actor's own scope_org_unit_id; SUPERUSER (no
+    scope_org_unit_id) sees everything, matching list_users' convention
+    for a plain listing endpoint (contrast referrals.py's /exceptions,
+    which fails closed to empty for SUPERUSER -- a different file's own
+    established precedent, not reused here since patients.py's own
+    single-GET below already treats a missing scope as a 403 at CREATE
+    time, never as "see nothing" at READ time)."""
+    limit = max(1, min(limit, 200))
+    org_units_tbl = sa.table("org_units", sa.column("id"), sa.column("path"))
+    stmt = select(Patient).join(org_units_tbl, org_units_tbl.c.id == Patient.org_unit_id)
+    if current_user.scope_org_unit_id is not None:
+        actor_path = session.exec(
+            text("SELECT path FROM org_units WHERE id = :id"),
+            params={"id": str(current_user.scope_org_unit_id)},
+        ).scalar()
+        if actor_path is None:
+            return []
+        stmt = stmt.where(sa.or_(
+            org_units_tbl.c.path == actor_path,
+            org_units_tbl.c.path.like(actor_path.rstrip("/") + "/%"),
+        ))
+    stmt = stmt.order_by(Patient.created_at.desc()).limit(limit).offset(offset)
+    patients = session.exec(stmt).all()
+
+    # One audit row per list call (not one per returned patient) -- same
+    # PHI-read-is-audited principle as get_patient's own PATIENT_PHI_READ
+    # below, sized to a listing call instead of a single-record fetch.
+    _write_audit(session, actor_user_id=str(current_user.id), action="PATIENT_LIST_READ", outcome="SUCCESS",
+                 metadata={"count": len(patients)})
+    session.commit()
+    # Same expire_on_commit gotcha as create_patient/get_patient above,
+    # just N objects instead of one: the commit above expires every
+    # Patient instance's loaded attributes, and response_model
+    # serialization runs after this function returns (session already
+    # torn down by then) -- without refreshing each row here first, every
+    # entry serializes as an empty {} (confirmed live).
+    for patient in patients:
+        session.refresh(patient)
+
+    return patients
 
 
 @router.get("/{patient_id}", response_model=Patient)

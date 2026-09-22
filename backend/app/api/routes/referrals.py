@@ -512,6 +512,55 @@ def _apply_transition(
     return metadata
 
 
+@router.get("/", response_model=list[Referral])
+def list_referrals(
+    facility_id: UUID = Query(...),
+    current_user=Depends(require("referral:read")),
+    session: Session = Depends(get_session),
+):
+    """Additive (frontend-integration gap): the Flutter client's reports
+    screen calls GET /referrals/?facility_id=X expecting every referral
+    touching that facility (as either sender or destination), but only
+    POST /referrals/, PATCH /referrals/{id}/status, and GET
+    /referrals/exceptions existed here (confirmed live as a 405 --
+    "/referrals/" already matches the POST route's path, just not this
+    method).
+
+    Scope gate mirrors this file's own /exceptions (STEP 1 above)
+    exactly, not app/api/routes/users.py's or patients.py's list
+    convention: no scope_org_unit_id (e.g. SUPERUSER) -> empty list, not
+    "see everything". Deliberately this file's own existing precedent
+    for a referral list, since /exceptions already established it here
+    and referrals carry more sensitive workflow state than a plain
+    directory listing.
+
+    facility_id itself is not independently scope-checked (unlike
+    /exceptions' org_unit_id drill-down param): a facility can
+    legitimately be the DESTINATION of a referral from outside the
+    actor's own scope (a district hospital's staff need to see referrals
+    arriving FROM a PHC outside their own subtree) -- rejecting or
+    404ing on that would break the receiving side entirely. The
+    org_units-path-prefix filter below (same as /exceptions) already
+    ensures only referrals whose OWN org_unit_id attribution is within
+    the actor's scope come back, which is the real PHI boundary here.
+    """
+    actor_path = _org_unit_path(session, current_user.scope_org_unit_id)
+    if current_user.scope_org_unit_id is None or actor_path is None:
+        return []
+
+    org_units_tbl = sa.table("org_units", sa.column("id"), sa.column("path"))
+    path_prefix = actor_path.rstrip("/") + "/%"
+
+    stmt = (
+        select(Referral)
+        .join(org_units_tbl, org_units_tbl.c.id == Referral.org_unit_id)
+        .where(sa.or_(Referral.from_facility_id == facility_id, Referral.destination_facility_id == facility_id))
+        .where(sa.or_(org_units_tbl.c.path == actor_path, org_units_tbl.c.path.like(path_prefix)))
+        .order_by(Referral.created_at.desc())
+    )
+    return session.exec(stmt).all()
+
+
 @router.patch("/{referral_id}/status")
 # No response_model here (unlike POST / above, which keeps response_model=
 # Referral unchanged): response_model=Referral would silently strip the
