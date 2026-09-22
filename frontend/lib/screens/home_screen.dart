@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:go_router/go_router.dart';
 
 import '../models/patient.dart';
 import 'facility_dashboard_screen.dart';
@@ -29,10 +30,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _screens,
-      ),
+      body: IndexedStack(index: _currentIndex, children: _screens),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
         onDestinationSelected: (index) {
@@ -73,36 +71,28 @@ class _HomeTab extends StatelessWidget {
   void _openRegistration(BuildContext context) {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => const RegistrationScreen(),
-      ),
+      MaterialPageRoute(builder: (_) => const RegistrationScreen()),
     );
   }
 
   void _openTriage(BuildContext context) {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => const TriageFormScreen(),
-      ),
+      MaterialPageRoute(builder: (_) => const TriageFormScreen()),
     );
   }
 
   void _openDashboard(BuildContext context) {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => const FacilityDashboardScreen(),
-      ),
+      MaterialPageRoute(builder: (_) => const FacilityDashboardScreen()),
     );
   }
 
   void _openRegistry(BuildContext context) {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => const PatientListScreen(),
-      ),
+      MaterialPageRoute(builder: (_) => const PatientListScreen()),
     );
   }
 
@@ -115,8 +105,9 @@ class _HomeTab extends StatelessWidget {
       builder: (context, box, _) {
         final registeredCount = box.length;
 
-        final pendingSyncCount =
-            box.values.where((patient) => !patient.synced).length;
+        final pendingSyncCount = box.values
+            .where((patient) => !patient.synced)
+            .length;
 
         return SafeArea(
           child: CustomScrollView(
@@ -128,23 +119,20 @@ class _HomeTab extends StatelessWidget {
                 elevation: 0,
                 title: const Text(
                   'SETU-Swasthya',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: TextStyle(fontWeight: FontWeight.w700),
                 ),
                 actions: [
                   IconButton(
+                    tooltip: 'Return to prototype home',
+                    icon: const Icon(Icons.arrow_back),
+                    onPressed: () => context.go('/home'),
+                  ),
+                  IconButton(
                     tooltip: 'Notifications',
-                    icon: const Icon(
-                      Icons.notifications_none,
-                    ),
+                    icon: const Icon(Icons.notifications_none),
                     onPressed: () {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'No new notifications.',
-                          ),
-                        ),
+                        const SnackBar(content: Text('No new notifications.')),
                       );
                     },
                   ),
@@ -152,172 +140,151 @@ class _HomeTab extends StatelessWidget {
               ),
 
               SliverPadding(
-                padding: const EdgeInsets.fromLTRB(
-                  16,
-                  20,
-                  16,
-                  32,
-                ),
+                padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
                 sliver: SliverList(
-                  delegate: SliverChildListDelegate(
-                    [
-                      const Text(
-                        'Good day',
-                        style: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF172124),
-                        ),
+                  delegate: SliverChildListDelegate([
+                    const Text(
+                      'Good day',
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF172124),
                       ),
+                    ),
 
-                      const SizedBox(height: 6),
+                    const SizedBox(height: 6),
 
-                      const Text(
-                        'Access and coordinate care for your community.',
-                        style: TextStyle(
-                          color: Color(0xFF687477),
-                          fontSize: 14,
-                          height: 1.4,
-                        ),
+                    const Text(
+                      'Access and coordinate care for your community.',
+                      style: TextStyle(
+                        color: Color(0xFF687477),
+                        fontSize: 14,
+                        height: 1.4,
                       ),
+                    ),
 
-                      const SizedBox(height: 20),
+                    const SizedBox(height: 20),
 
-                      _buildPrimaryAction(
-                        context,
-                        icon: Icons.person_add_outlined,
-                        title: 'Register Citizen',
-                        subtitle:
-                            'Create a new citizen record',
-                        onPressed: () =>
-                            _openRegistration(context),
+                    _buildPrimaryAction(
+                      context,
+                      icon: Icons.person_add_outlined,
+                      title: 'Register Citizen',
+                      subtitle: 'Create a new citizen record',
+                      onPressed: () => _openRegistration(context),
+                    ),
+
+                    const SizedBox(height: 10),
+
+                    _buildSecondaryAction(
+                      context,
+                      icon: Icons.monitor_heart_outlined,
+                      title: 'Start Triage',
+                      subtitle: 'Assess current clinical indicators',
+                      onPressed: () => _openTriage(context),
+                    ),
+
+                    const SizedBox(height: 28),
+
+                    const Text(
+                      'Overview',
+                      style: TextStyle(
+                        fontSize: 19,
+                        fontWeight: FontWeight.w700,
                       ),
+                    ),
 
-                      const SizedBox(height: 10),
+                    const SizedBox(height: 12),
 
-                      _buildSecondaryAction(
-                        context,
-                        icon: Icons.monitor_heart_outlined,
-                        title: 'Start Triage',
-                        subtitle:
-                            'Assess current clinical indicators',
-                        onPressed: () =>
-                            _openTriage(context),
-                      ),
-
-                      const SizedBox(height: 28),
-
-                      const Text(
-                        'Overview',
-                        style: TextStyle(
-                          fontSize: 19,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _OverviewCard(
-                              icon: Icons.people_outline,
-                              title: 'Registered',
-                              value: '$registeredCount',
-                              iconColor:
-                                  const Color(0xFF075965),
-                            ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _OverviewCard(
+                            icon: Icons.people_outline,
+                            title: 'Registered',
+                            value: '$registeredCount',
+                            iconColor: const Color(0xFF075965),
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _OverviewCard(
-                              icon: Icons.sync_outlined,
-                              title: 'Pending Sync',
-                              value: '$pendingSyncCount',
-                              iconColor:
-                                  const Color(0xFF9A5A00),
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _OverviewCard(
-                              icon: Icons.warning_amber_outlined,
-                              title: 'Follow-ups',
-                              value: '0',
-                              iconColor:
-                                  const Color(0xFF6A4A8A),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _OverviewCard(
-                              icon: Icons.emergency_outlined,
-                              title: 'Emergency',
-                              value: '0',
-                              iconColor:
-                                  const Color(0xFFC62828),
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 28),
-
-                      const Text(
-                        'Quick Access',
-                        style: TextStyle(
-                          fontSize: 19,
-                          fontWeight: FontWeight.w700,
                         ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _OverviewCard(
+                            icon: Icons.sync_outlined,
+                            title: 'Pending Sync',
+                            value: '$pendingSyncCount',
+                            iconColor: const Color(0xFF9A5A00),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _OverviewCard(
+                            icon: Icons.warning_amber_outlined,
+                            title: 'Follow-ups',
+                            value: '0',
+                            iconColor: const Color(0xFF6A4A8A),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _OverviewCard(
+                            icon: Icons.emergency_outlined,
+                            title: 'Emergency',
+                            value: '0',
+                            iconColor: const Color(0xFFC62828),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 28),
+
+                    const Text(
+                      'Quick Access',
+                      style: TextStyle(
+                        fontSize: 19,
+                        fontWeight: FontWeight.w700,
                       ),
+                    ),
 
-                      const SizedBox(height: 12),
+                    const SizedBox(height: 12),
 
-                      _QuickAccessCard(
-                        icon: Icons.dashboard_outlined,
-                        title: 'Facility Dashboard',
-                        subtitle:
-                            'View operational metrics and exceptions',
-                        onTap: () =>
-                            _openDashboard(context),
-                      ),
+                    _QuickAccessCard(
+                      icon: Icons.dashboard_outlined,
+                      title: 'Facility Dashboard',
+                      subtitle: 'View operational metrics and exceptions',
+                      onTap: () => _openDashboard(context),
+                    ),
 
-                      const SizedBox(height: 10),
+                    const SizedBox(height: 10),
 
-                      _QuickAccessCard(
-                        icon: Icons.people_outline,
-                        title: 'Health Registry',
-                        subtitle:
-                            'Search and manage citizen records',
-                        onTap: () =>
-                            _openRegistry(context),
-                      ),
+                    _QuickAccessCard(
+                      icon: Icons.people_outline,
+                      title: 'Health Registry',
+                      subtitle: 'Search and manage citizen records',
+                      onTap: () => _openRegistry(context),
+                    ),
 
-                      const SizedBox(height: 10),
+                    const SizedBox(height: 10),
 
-                      _QuickAccessCard(
-                        icon: Icons.bar_chart_outlined,
-                        title: 'Reports & Analytics',
-                        subtitle:
-                            'Review facility performance',
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  const ReportsScreen(),
-                            ),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
+                    _QuickAccessCard(
+                      icon: Icons.bar_chart_outlined,
+                      title: 'Reports & Analytics',
+                      subtitle: 'Review facility performance',
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const ReportsScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                  ]),
                 ),
               ),
             ],
@@ -341,13 +308,8 @@ class _HomeTab extends StatelessWidget {
         style: FilledButton.styleFrom(
           backgroundColor: const Color(0xFF075965),
           foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(
-            horizontal: 18,
-            vertical: 15,
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
         child: Row(
           children: [
@@ -355,8 +317,7 @@ class _HomeTab extends StatelessWidget {
             const SizedBox(width: 13),
             Expanded(
               child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     title,
@@ -368,10 +329,7 @@ class _HomeTab extends StatelessWidget {
                   const SizedBox(height: 3),
                   Text(
                     subtitle,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: Colors.white70,
-                    ),
+                    style: const TextStyle(fontSize: 11, color: Colors.white70),
                   ),
                 ],
               ),
@@ -396,16 +354,9 @@ class _HomeTab extends StatelessWidget {
         onPressed: onPressed,
         style: OutlinedButton.styleFrom(
           foregroundColor: const Color(0xFF075965),
-          side: const BorderSide(
-            color: Color(0xFF9DB9BD),
-          ),
-          padding: const EdgeInsets.symmetric(
-            horizontal: 18,
-            vertical: 14,
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
+          side: const BorderSide(color: Color(0xFF9DB9BD)),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
         child: Row(
           children: [
@@ -413,8 +364,7 @@ class _HomeTab extends StatelessWidget {
             const SizedBox(width: 13),
             Expanded(
               child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     title,
@@ -462,13 +412,10 @@ class _OverviewCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(9),
-        border: Border.all(
-          color: const Color(0xFFD9E0E2),
-        ),
+        border: Border.all(color: const Color(0xFFD9E0E2)),
       ),
       child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             width: 38,
@@ -477,27 +424,17 @@ class _OverviewCard extends StatelessWidget {
               color: iconColor.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(7),
             ),
-            child: Icon(
-              icon,
-              color: iconColor,
-              size: 20,
-            ),
+            child: Icon(icon, color: iconColor, size: 20),
           ),
           const SizedBox(height: 12),
           Text(
             value,
-            style: const TextStyle(
-              fontSize: 25,
-              fontWeight: FontWeight.w800,
-            ),
+            style: const TextStyle(fontSize: 25, fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 3),
           Text(
             title,
-            style: const TextStyle(
-              color: Color(0xFF687477),
-              fontSize: 11,
-            ),
+            style: const TextStyle(color: Color(0xFF687477), fontSize: 11),
           ),
         ],
       ),
@@ -530,9 +467,7 @@ class _QuickAccessCard extends StatelessWidget {
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(9),
-            border: Border.all(
-              color: const Color(0xFFD9E0E2),
-            ),
+            border: Border.all(color: const Color(0xFFD9E0E2)),
           ),
           child: Row(
             children: [
@@ -551,8 +486,7 @@ class _QuickAccessCard extends StatelessWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       title,
@@ -572,10 +506,7 @@ class _QuickAccessCard extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(
-                Icons.chevron_right,
-                color: Color(0xFF7A8588),
-              ),
+              const Icon(Icons.chevron_right, color: Color(0xFF7A8588)),
             ],
           ),
         ),

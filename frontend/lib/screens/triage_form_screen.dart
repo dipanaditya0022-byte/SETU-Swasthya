@@ -7,10 +7,7 @@ import 'triage_disposition_screen.dart';
 class TriageFormScreen extends StatefulWidget {
   final PatientLocal? patient;
 
-  const TriageFormScreen({
-    super.key,
-    this.patient,
-  });
+  const TriageFormScreen({super.key, this.patient});
 
   @override
   State<TriageFormScreen> createState() => _TriageFormScreenState();
@@ -155,17 +152,15 @@ class _TriageFormScreenState extends State<TriageFormScreen> {
         foregroundColor: const Color(0xFF12343B),
         title: const Text(
           'Clinical Triage',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-          ),
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
         ),
       ),
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final contentWidth =
-                constraints.maxWidth > 650 ? 620.0 : constraints.maxWidth;
+            final contentWidth = constraints.maxWidth > 650
+                ? 620.0
+                : constraints.maxWidth;
 
             return Center(
               child: SizedBox(
@@ -173,12 +168,7 @@ class _TriageFormScreenState extends State<TriageFormScreen> {
                 child: Form(
                   key: _formKey,
                   child: ListView(
-                    padding: const EdgeInsets.fromLTRB(
-                      16,
-                      16,
-                      16,
-                      32,
-                    ),
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
                     children: [
                       _buildIntroCard(),
                       const SizedBox(height: 16),
@@ -198,9 +188,7 @@ class _TriageFormScreenState extends State<TriageFormScreen> {
                               borderRadius: BorderRadius.circular(7),
                             ),
                           ),
-                          icon: const Icon(
-                            Icons.health_and_safety_outlined,
-                          ),
+                          icon: const Icon(Icons.health_and_safety_outlined),
                           label: const Text(
                             'Evaluate Triage Risk',
                             style: TextStyle(
@@ -238,18 +226,12 @@ class _TriageFormScreenState extends State<TriageFormScreen> {
       decoration: BoxDecoration(
         color: const Color(0xFFEAF4F5),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: const Color(0xFFC7DFE2),
-        ),
+        border: Border.all(color: const Color(0xFFC7DFE2)),
       ),
       child: const Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            Icons.info_outline,
-            color: Color(0xFF075965),
-            size: 22,
-          ),
+          Icon(Icons.info_outline, color: Color(0xFF075965), size: 22),
           SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -287,9 +269,7 @@ class _TriageFormScreenState extends State<TriageFormScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: const Color(0xFFD9E0E2),
-        ),
+        border: Border.all(color: const Color(0xFFD9E0E2)),
       ),
       child: ValueListenableBuilder<Box<PatientLocal>>(
         valueListenable: Hive.box<PatientLocal>('patients').listenable(),
@@ -320,10 +300,7 @@ class _TriageFormScreenState extends State<TriageFormScreen> {
               const SizedBox(height: 4),
               const Text(
                 'Select the patient being assessed.',
-                style: TextStyle(
-                  color: Color(0xFF778286),
-                  fontSize: 11,
-                ),
+                style: TextStyle(color: Color(0xFF778286), fontSize: 11),
               ),
               const SizedBox(height: 14),
               if (patients.isEmpty)
@@ -336,10 +313,7 @@ class _TriageFormScreenState extends State<TriageFormScreen> {
                   ),
                   child: const Row(
                     children: [
-                      Icon(
-                        Icons.info_outline,
-                        color: Color(0xFF9A5A00),
-                      ),
+                      Icon(Icons.info_outline, color: Color(0xFF9A5A00)),
                       SizedBox(width: 10),
                       Expanded(
                         child: Text(
@@ -360,9 +334,7 @@ class _TriageFormScreenState extends State<TriageFormScreen> {
                   isExpanded: true,
                   decoration: InputDecoration(
                     labelText: 'Patient',
-                    prefixIcon: const Icon(
-                      Icons.person_outline,
-                    ),
+                    prefixIcon: const Icon(Icons.person_outline),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(7),
                     ),
@@ -403,9 +375,7 @@ class _TriageFormScreenState extends State<TriageFormScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: const Color(0xFFD9E0E2),
-        ),
+        border: Border.all(color: const Color(0xFFD9E0E2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -421,10 +391,7 @@ class _TriageFormScreenState extends State<TriageFormScreen> {
           const SizedBox(height: 4),
           const Text(
             'Enter the latest available measurements.',
-            style: TextStyle(
-              color: Color(0xFF778286),
-              fontSize: 11,
-            ),
+            style: TextStyle(color: Color(0xFF778286), fontSize: 11),
           ),
           const SizedBox(height: 16),
           _buildField(
@@ -443,9 +410,7 @@ class _TriageFormScreenState extends State<TriageFormScreen> {
             hint: '10.5',
             unit: 'g/dL',
             icon: Icons.bloodtype_outlined,
-            keyboardType: const TextInputType.numberWithOptions(
-              decimal: true,
-            ),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
             validator: _validateHemoglobin,
           ),
           const SizedBox(height: 14),
@@ -479,16 +444,9 @@ class _TriageFormScreenState extends State<TriageFormScreen> {
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
-        prefixIcon: Icon(
-          icon,
-          color: const Color(0xFF5D6B6F),
-          size: 21,
-        ),
+        prefixIcon: Icon(icon, color: const Color(0xFF5D6B6F), size: 21),
         suffixText: unit,
-        suffixStyle: const TextStyle(
-          color: Color(0xFF697579),
-          fontSize: 12,
-        ),
+        suffixStyle: const TextStyle(color: Color(0xFF697579), fontSize: 12),
         filled: true,
         fillColor: const Color(0xFFFCFDFD),
         contentPadding: const EdgeInsets.symmetric(
@@ -497,28 +455,19 @@ class _TriageFormScreenState extends State<TriageFormScreen> {
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(6),
-          borderSide: const BorderSide(
-            color: Color(0xFFBFC9CC),
-          ),
+          borderSide: const BorderSide(color: Color(0xFFBFC9CC)),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(6),
-          borderSide: const BorderSide(
-            color: Color(0xFFBFC9CC),
-          ),
+          borderSide: const BorderSide(color: Color(0xFFBFC9CC)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(6),
-          borderSide: const BorderSide(
-            color: Color(0xFF075965),
-            width: 1.5,
-          ),
+          borderSide: const BorderSide(color: Color(0xFF075965), width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(6),
-          borderSide: const BorderSide(
-            color: Color(0xFFC62828),
-          ),
+          borderSide: const BorderSide(color: Color(0xFFC62828)),
         ),
       ),
     );

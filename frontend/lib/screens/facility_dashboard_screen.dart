@@ -9,7 +9,8 @@ class FacilityDashboardScreen extends StatefulWidget {
   const FacilityDashboardScreen({super.key});
 
   @override
-  State<FacilityDashboardScreen> createState() => _FacilityDashboardScreenState();
+  State<FacilityDashboardScreen> createState() =>
+      _FacilityDashboardScreenState();
 }
 
 class _FacilityDashboardScreenState extends State<FacilityDashboardScreen> {
@@ -55,9 +56,7 @@ class _FacilityDashboardScreenState extends State<FacilityDashboardScreen> {
         }
       }
       final referralLists = await Future.wait(
-        facilityIds.map(
-          (id) => _apiService.getReferrals(facilityId: id),
-        ),
+        facilityIds.map((id) => _apiService.getReferrals(facilityId: id)),
       );
       final referralsById = <String, Map<String, dynamic>>{};
       for (final referrals in referralLists) {
@@ -108,11 +107,12 @@ class _FacilityDashboardScreenState extends State<FacilityDashboardScreen> {
     final backendDestinationId =
         (backendReferral['destination_facility_id'] ?? '').toString();
     final localPatient = patientBox.values.cast<PatientLocal?>().firstWhere(
-          (patient) => patient?.clientUuid == localReferral.patientId,
-          orElse: () => null,
-        );
+      (patient) => patient?.clientUuid == localReferral.patientId,
+      orElse: () => null,
+    );
 
-    final patientMatches = localReferral.patientId == backendPatientId ||
+    final patientMatches =
+        localReferral.patientId == backendPatientId ||
         localPatient?.backendPatientId == backendPatientId;
     final destinationMatches = _facilityNames.entries.any(
       (entry) =>
@@ -132,12 +132,14 @@ class _FacilityDashboardScreenState extends State<FacilityDashboardScreen> {
           (referral) => _buildExceptionRow(
             (referral['id'] ?? '').toString(),
             'Patient ID: ${(referral['patient_id'] ?? '').toString()}',
-            _facilityNames[(referral['destination_facility_id'] ?? '').toString()] ??
+            _facilityNames[(referral['destination_facility_id'] ?? '')
+                    .toString()] ??
                 (referral['destination_facility_id'] ?? '').toString(),
             (referral['urgency'] ?? '').toString(),
             (referral['status'] ?? '').toString(),
             (referral['reason'] ?? '').toString(),
-            sourceFacility: _facilityNames[(referral['from_facility_id'] ?? '').toString()],
+            sourceFacility:
+                _facilityNames[(referral['from_facility_id'] ?? '').toString()],
             actions: _buildStatusActions(referral),
           ),
         )
@@ -178,7 +180,11 @@ class _FacilityDashboardScreenState extends State<FacilityDashboardScreen> {
   // onto real, ALLOWED_TRANSITIONS-valid next states instead, each carrying
   // whatever TRANSITION_REQUIRED_FIELDS demands for that transition.
   static const Set<String> _cancellableStatuses = {
-    'INITIATED', 'SLOT_BOOKED', 'TRANSPORT_ARRANGED', 'ARRIVED', 'RESCHEDULED',
+    'INITIATED',
+    'SLOT_BOOKED',
+    'TRANSPORT_ARRANGED',
+    'ARRIVED',
+    'RESCHEDULED',
   };
 
   List<Widget> _buildStatusActions(Map<String, dynamic> referral) {
@@ -196,9 +202,9 @@ class _FacilityDashboardScreenState extends State<FacilityDashboardScreen> {
       nextStatus = 'SLOT_BOOKED';
       actionLabel = 'Accept';
       buildBody = () => {
-            'slot_datetime': DateTime.now().toUtc().toIso8601String(),
-            'destination_org_unit_id': referral['destination_facility_id'],
-          };
+        'slot_datetime': DateTime.now().toUtc().toIso8601String(),
+        'destination_org_unit_id': referral['destination_facility_id'],
+      };
     } else if (status == 'SLOT_BOOKED' && _currentUserId != null) {
       nextStatus = 'ARRIVED';
       actionLabel = 'Mark Arrived';
@@ -220,10 +226,10 @@ class _FacilityDashboardScreenState extends State<FacilityDashboardScreen> {
           onPressed: isUpdating
               ? null
               : () => _updateReferralStatus(
-                    referralId: referralId,
-                    status: nextStatus!,
-                    data: buildBody!(),
-                  ),
+                  referralId: referralId,
+                  status: nextStatus!,
+                  data: buildBody!(),
+                ),
           child: Text(actionLabel!),
         ),
       if (_cancellableStatuses.contains(status))
@@ -254,7 +260,8 @@ class _FacilityDashboardScreenState extends State<FacilityDashboardScreen> {
               child: const Text('Back'),
             ),
             TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(controller.text.trim()),
+              onPressed: () =>
+                  Navigator.of(dialogContext).pop(controller.text.trim()),
               child: const Text('Cancel referral'),
             ),
           ],
@@ -288,15 +295,17 @@ class _FacilityDashboardScreenState extends State<FacilityDashboardScreen> {
       );
       await _loadBackendReferrals();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Referral updated to $status.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Referral updated to $status.')));
     } on NetworkException catch (error) {
       _showStatusUpdateError(error.message);
     } on AuthenticationException catch (error) {
       _showStatusUpdateError(error.message);
     } catch (_) {
-      _showStatusUpdateError('Unable to update the referral. Please try again.');
+      _showStatusUpdateError(
+        'Unable to update the referral. Please try again.',
+      );
     } finally {
       if (mounted) {
         setState(() {
@@ -335,7 +344,9 @@ class _FacilityDashboardScreenState extends State<FacilityDashboardScreen> {
         valueListenable: Hive.box<PatientLocal>('patients').listenable(),
         builder: (context, Box<PatientLocal> patientBox, _) {
           final totalPatients = patientBox.values.length;
-          final unsyncedCount = patientBox.values.where((p) => !p.synced).length;
+          final unsyncedCount = patientBox.values
+              .where((p) => !p.synced)
+              .length;
           final syncedCount = patientBox.values.where((p) => p.synced).length;
 
           return Padding(
@@ -394,8 +405,8 @@ class _FacilityDashboardScreenState extends State<FacilityDashboardScreen> {
                 const SizedBox(height: 16),
                 Expanded(
                   child: ValueListenableBuilder(
-                    valueListenable:
-                        Hive.box<ReferralLocal>('referrals').listenable(),
+                    valueListenable: Hive.box<ReferralLocal>('referrals')
+                        .listenable(),
                     builder: (context, Box<ReferralLocal> referralBox, _) {
                       if (_isLoadingReferrals) {
                         return const Center(child: CircularProgressIndicator());
@@ -419,9 +430,7 @@ class _FacilityDashboardScreenState extends State<FacilityDashboardScreen> {
                         );
                       }
 
-                      return ListView(
-                        children: referralCards,
-                      );
+                      return ListView(children: referralCards);
                     },
                   ),
                 ),
@@ -473,9 +482,10 @@ class _FacilityDashboardScreenState extends State<FacilityDashboardScreen> {
     String destinationFacility,
     String urgency,
     String status,
-    String reason,
-    {String? sourceFacility, List<Widget> actions = const []}
-  ) {
+    String reason, {
+    String? sourceFacility,
+    List<Widget> actions = const [],
+  }) {
     final urgencyNormalized = urgency.toLowerCase();
     final isEmergency = urgencyNormalized == 'emergency';
     final iconColor = isEmergency ? Colors.red : Colors.orange;
@@ -492,10 +502,7 @@ class _FacilityDashboardScreenState extends State<FacilityDashboardScreen> {
       ),
       child: ListTile(
         leading: Icon(icon, color: iconColor, size: 28),
-        title: Text(
-          id,
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
+        title: Text(id, style: const TextStyle(fontWeight: FontWeight.bold)),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -512,17 +519,11 @@ class _FacilityDashboardScreenState extends State<FacilityDashboardScreen> {
               style: const TextStyle(fontSize: 12),
             ),
             const SizedBox(height: 4),
-            Text(
-              reason,
-              style: const TextStyle(fontSize: 12),
-            ),
+            Text(reason, style: const TextStyle(fontSize: 12)),
             if (actions.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 4),
-                child: Wrap(
-                  spacing: 4,
-                  children: actions,
-                ),
+                child: Wrap(spacing: 4, children: actions),
               ),
           ],
         ),

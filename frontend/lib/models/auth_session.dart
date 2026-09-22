@@ -23,7 +23,9 @@ class AuthSession {
           : 'bearer',
       expiresIn: json['expires_in'] is int
           ? json['expires_in'] as int
-          : (json['expires_in'] is num ? (json['expires_in'] as num).toInt() : 0),
+          : (json['expires_in'] is num
+                ? (json['expires_in'] as num).toInt()
+                : 0),
     );
   }
 }

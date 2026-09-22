@@ -13,35 +13,25 @@ class ProfileScreen extends StatelessWidget {
         foregroundColor: const Color(0xFF12343B),
         title: const Text(
           'Profile',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-          ),
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
         ),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
-          child: Container(
-            height: 1,
-            color: const Color(0xFFD9E0E2),
-          ),
+          child: Container(height: 1, color: const Color(0xFFD9E0E2)),
         ),
       ),
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final width =
-                constraints.maxWidth > 650 ? 620.0 : constraints.maxWidth;
+            final width = constraints.maxWidth > 650
+                ? 620.0
+                : constraints.maxWidth;
 
             return Center(
               child: SizedBox(
                 width: width,
                 child: ListView(
-                  padding: const EdgeInsets.fromLTRB(
-                    16,
-                    18,
-                    16,
-                    32,
-                  ),
+                  padding: const EdgeInsets.fromLTRB(16, 18, 16, 32),
                   children: [
                     _buildProfileHeader(),
                     const SizedBox(height: 16),
@@ -70,9 +60,7 @@ class ProfileScreen extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: const Color(0xFFD9E0E2),
-        ),
+        border: Border.all(color: const Color(0xFFD9E0E2)),
       ),
       child: Column(
         children: [
@@ -106,17 +94,11 @@ class ProfileScreen extends StatelessWidget {
           const SizedBox(height: 5),
           const Text(
             'Frontline Health Worker',
-            style: TextStyle(
-              fontSize: 13,
-              color: Color(0xFF687477),
-            ),
+            style: TextStyle(fontSize: 13, color: Color(0xFF687477)),
           ),
           const SizedBox(height: 10),
           Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 6,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
               color: const Color(0xFFEAF7EF),
               borderRadius: BorderRadius.circular(20),
@@ -151,23 +133,11 @@ class ProfileScreen extends StatelessWidget {
       title: 'Personal Information',
       icon: Icons.person_outline,
       children: [
-        _infoRow(
-          'Name',
-          'Faeza',
-          Icons.badge_outlined,
-        ),
+        _infoRow('Name', 'Faeza', Icons.badge_outlined),
         const Divider(height: 24),
-        _infoRow(
-          'Mobile',
-          'Not connected',
-          Icons.phone_outlined,
-        ),
+        _infoRow('Mobile', 'Not connected', Icons.phone_outlined),
         const Divider(height: 24),
-        _infoRow(
-          'Email',
-          'Not connected',
-          Icons.email_outlined,
-        ),
+        _infoRow('Email', 'Not connected', Icons.email_outlined),
       ],
     );
   }
@@ -177,11 +147,7 @@ class ProfileScreen extends StatelessWidget {
       title: 'Facility Information',
       icon: Icons.local_hospital_outlined,
       children: [
-        _infoRow(
-          'Facility',
-          'PHC Testville',
-          Icons.business_outlined,
-        ),
+        _infoRow('Facility', 'PHC Testville', Icons.business_outlined),
         const Divider(height: 24),
         _infoRow(
           'Facility Type',
@@ -189,11 +155,7 @@ class ProfileScreen extends StatelessWidget {
           Icons.medical_services_outlined,
         ),
         const Divider(height: 24),
-        _infoRow(
-          'Location',
-          'Testville',
-          Icons.location_on_outlined,
-        ),
+        _infoRow('Location', 'Testville', Icons.location_on_outlined),
       ],
     );
   }
@@ -203,17 +165,9 @@ class ProfileScreen extends StatelessWidget {
       title: 'Access & Role',
       icon: Icons.admin_panel_settings_outlined,
       children: [
-        _infoRow(
-          'Role',
-          'Frontline Health Worker',
-          Icons.person_pin_outlined,
-        ),
+        _infoRow('Role', 'Frontline Health Worker', Icons.person_pin_outlined),
         const Divider(height: 24),
-        _infoRow(
-          'Access Level',
-          'Facility Operations',
-          Icons.lock_outline,
-        ),
+        _infoRow('Access Level', 'Facility Operations', Icons.lock_outline),
         const Divider(height: 24),
         _infoRow(
           'Account Status',
@@ -237,9 +191,7 @@ class ProfileScreen extends StatelessWidget {
           onTap: () {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text(
-                  'Language selection will be added later.',
-                ),
+                content: Text('Language selection will be added later.'),
               ),
             );
           },
@@ -252,9 +204,7 @@ class ProfileScreen extends StatelessWidget {
           onTap: () {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text(
-                  'Sync settings will be connected later.',
-                ),
+                content: Text('Sync settings will be connected later.'),
               ),
             );
           },
@@ -269,8 +219,7 @@ class ProfileScreen extends StatelessWidget {
               context: context,
               applicationName: 'SETU-Swasthya',
               applicationVersion: '1.0.0',
-              applicationLegalese:
-                  'Care-access and quality support platform.',
+              applicationLegalese: 'Care-access and quality support platform.',
             );
           },
         ),
@@ -287,19 +236,13 @@ class ProfileScreen extends StatelessWidget {
         },
         style: OutlinedButton.styleFrom(
           foregroundColor: const Color(0xFFC62828),
-          side: const BorderSide(
-            color: Color(0xFFE0A3A3),
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(7),
-          ),
+          side: const BorderSide(color: Color(0xFFE0A3A3)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
         ),
         icon: const Icon(Icons.logout),
         label: const Text(
           'Sign Out',
-          style: TextStyle(
-            fontWeight: FontWeight.w700,
-          ),
+          style: TextStyle(fontWeight: FontWeight.w700),
         ),
       ),
     );
@@ -351,20 +294,14 @@ class ProfileScreen extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(9),
-        border: Border.all(
-          color: const Color(0xFFD9E0E2),
-        ),
+        border: Border.all(color: const Color(0xFFD9E0E2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(
-                icon,
-                color: const Color(0xFF075965),
-                size: 21,
-              ),
+              Icon(icon, color: const Color(0xFF075965), size: 21),
               const SizedBox(width: 8),
               Text(
                 title,
@@ -391,19 +328,12 @@ class ProfileScreen extends StatelessWidget {
   }) {
     return Row(
       children: [
-        Icon(
-          icon,
-          color: const Color(0xFF697579),
-          size: 20,
-        ),
+        Icon(icon, color: const Color(0xFF697579), size: 20),
         const SizedBox(width: 10),
         Expanded(
           child: Text(
             label,
-            style: const TextStyle(
-              fontSize: 12,
-              color: Color(0xFF687477),
-            ),
+            style: const TextStyle(fontSize: 12, color: Color(0xFF687477)),
           ),
         ),
         Flexible(
@@ -432,11 +362,7 @@ class ProfileScreen extends StatelessWidget {
       borderRadius: BorderRadius.circular(6),
       child: Row(
         children: [
-          Icon(
-            icon,
-            color: const Color(0xFF075965),
-            size: 21,
-          ),
+          Icon(icon, color: const Color(0xFF075965), size: 21),
           const SizedBox(width: 11),
           Expanded(
             child: Column(
@@ -460,10 +386,7 @@ class ProfileScreen extends StatelessWidget {
               ],
             ),
           ),
-          const Icon(
-            Icons.chevron_right,
-            color: Color(0xFF879194),
-          ),
+          const Icon(Icons.chevron_right, color: Color(0xFF879194)),
         ],
       ),
     );

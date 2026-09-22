@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
+
 import '../models/patient.dart';
 import 'triage_form_screen.dart';
 
 class PatientSummaryScreen extends StatelessWidget {
   final PatientLocal patient;
 
-  const PatientSummaryScreen({
-    super.key,
-    required this.patient,
-  });
+  const PatientSummaryScreen({super.key, required this.patient});
 
   @override
   Widget build(BuildContext context) {
@@ -22,9 +20,7 @@ class PatientSummaryScreen extends StatelessWidget {
         elevation: 0,
         title: const Text(
           'Citizen Record',
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-          ),
+          style: TextStyle(fontWeight: FontWeight.w600),
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -33,10 +29,7 @@ class PatientSummaryScreen extends StatelessWidget {
         actions: [
           Container(
             margin: const EdgeInsets.only(right: 12),
-            padding: const EdgeInsets.symmetric(
-              horizontal: 14,
-              vertical: 7,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
             decoration: BoxDecoration(
               color: Colors.red.shade700,
               borderRadius: BorderRadius.circular(20),
@@ -103,10 +96,7 @@ class PatientSummaryScreen extends StatelessWidget {
               icon: const Icon(Icons.add_circle_outline),
               label: const Text(
                 'Update Vitals',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
             ),
           ),
@@ -122,17 +112,16 @@ class PatientSummaryScreen extends StatelessWidget {
   // ================================================================
 
   Widget _buildProfileCard(Color teal) {
-    final String initial =
-        patient.name.isNotEmpty ? patient.name[0].toUpperCase() : '?';
+    final String initial = patient.name.isNotEmpty
+        ? patient.name[0].toUpperCase()
+        : '?';
 
     return Card(
       elevation: 0,
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(10),
-        side: const BorderSide(
-          color: Color(0xFFD9E0E3),
-        ),
+        side: const BorderSide(color: Color(0xFFD9E0E3)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -178,9 +167,7 @@ class PatientSummaryScreen extends StatelessWidget {
                           const SizedBox(width: 4),
                           Text(
                             'Age: ${patient.age}',
-                            style: const TextStyle(
-                              color: Colors.black54,
-                            ),
+                            style: const TextStyle(color: Colors.black54),
                           ),
                         ],
                       ),
@@ -196,9 +183,7 @@ class PatientSummaryScreen extends StatelessWidget {
                           Expanded(
                             child: Text(
                               patient.village,
-                              style: const TextStyle(
-                                color: Colors.black54,
-                              ),
+                              style: const TextStyle(color: Colors.black54),
                             ),
                           ),
                         ],
@@ -207,10 +192,7 @@ class PatientSummaryScreen extends StatelessWidget {
                   ),
                 ),
 
-                const Icon(
-                  Icons.qr_code_2,
-                  color: Colors.grey,
-                ),
+                const Icon(Icons.qr_code_2, color: Colors.grey),
               ],
             ),
 
@@ -224,10 +206,7 @@ class PatientSummaryScreen extends StatelessWidget {
               children: [
                 const Text(
                   'Patient ID',
-                  style: TextStyle(
-                    color: Colors.grey,
-                    fontSize: 13,
-                  ),
+                  style: TextStyle(color: Colors.grey, fontSize: 13),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
@@ -248,16 +227,11 @@ class PatientSummaryScreen extends StatelessWidget {
               children: [
                 const Text(
                   'Sync Status',
-                  style: TextStyle(
-                    color: Colors.grey,
-                    fontSize: 13,
-                  ),
+                  style: TextStyle(color: Colors.grey, fontSize: 13),
                 ),
                 const SizedBox(width: 8),
                 Icon(
-                  patient.synced
-                      ? Icons.cloud_done
-                      : Icons.cloud_off,
+                  patient.synced ? Icons.cloud_done : Icons.cloud_off,
                   size: 17,
                   color: patient.synced
                       ? Colors.green.shade700
@@ -265,9 +239,7 @@ class PatientSummaryScreen extends StatelessWidget {
                 ),
                 const SizedBox(width: 4),
                 Text(
-                  patient.synced
-                      ? 'Synced'
-                      : 'Pending Local Sync',
+                  patient.synced ? 'Synced' : 'Pending Local Sync',
                   style: TextStyle(
                     color: patient.synced
                         ? Colors.green.shade700
@@ -294,9 +266,7 @@ class PatientSummaryScreen extends StatelessWidget {
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(10),
-        side: const BorderSide(
-          color: Color(0xFFD9E0E3),
-        ),
+        side: const BorderSide(color: Color(0xFFD9E0E3)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -304,18 +274,12 @@ class PatientSummaryScreen extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(
-                  Icons.monitor_heart_outlined,
-                  color: teal,
-                ),
+                Icon(Icons.monitor_heart_outlined, color: teal),
                 const SizedBox(width: 8),
                 const Expanded(
                   child: Text(
                     'Current Health Data',
-                    style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
                   ),
                 ),
               ],
@@ -325,16 +289,11 @@ class PatientSummaryScreen extends StatelessWidget {
 
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 28,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
               decoration: BoxDecoration(
                 color: const Color(0xFFF8FAFA),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: const Color(0xFFE1E6E8),
-                ),
+                border: Border.all(color: const Color(0xFFE1E6E8)),
               ),
               child: Column(
                 children: [
@@ -357,10 +316,7 @@ class PatientSummaryScreen extends StatelessWidget {
                   const Text(
                     'No health data available yet',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                   ),
 
                   const SizedBox(height: 8),
@@ -370,10 +326,7 @@ class PatientSummaryScreen extends StatelessWidget {
                     'Consistent monitoring helps maintain a '
                     'comprehensive health profile.',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.grey,
-                      height: 1.4,
-                    ),
+                    style: TextStyle(color: Colors.grey, height: 1.4),
                   ),
                 ],
               ),
@@ -394,9 +347,7 @@ class PatientSummaryScreen extends StatelessWidget {
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(10),
-        side: const BorderSide(
-          color: Color(0xFFD9E0E3),
-        ),
+        side: const BorderSide(color: Color(0xFFD9E0E3)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -405,17 +356,11 @@ class PatientSummaryScreen extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(
-                  Icons.history,
-                  color: teal,
-                ),
+                Icon(Icons.history, color: teal),
                 const SizedBox(width: 8),
                 const Text(
                   'Recent Encounters',
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -433,16 +378,12 @@ class PatientSummaryScreen extends StatelessWidget {
                   const SizedBox(height: 10),
                   const Text(
                     'No recent encounters',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: 5),
                   const Text(
                     'Clinical encounters will appear here.',
-                    style: TextStyle(
-                      color: Colors.grey,
-                    ),
+                    style: TextStyle(color: Colors.grey),
                   ),
                 ],
               ),

@@ -18,12 +18,7 @@ class _PatientListScreenState extends State<PatientListScreen> {
   String _selectedFilter = 'All';
   bool _isRefreshing = false;
 
-  final List<String> _filters = [
-    'All',
-    'Vaccinations',
-    'Prenatal',
-    'General',
-  ];
+  final List<String> _filters = ['All', 'Vaccinations', 'Prenatal', 'General'];
 
   @override
   void initState() {
@@ -152,10 +147,7 @@ class _PatientListScreenState extends State<PatientListScreen> {
               ),
             ),
             Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 7,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
               decoration: BoxDecoration(
                 color: const Color(0xFFC8102E),
                 borderRadius: BorderRadius.circular(20),
@@ -174,16 +166,12 @@ class _PatientListScreenState extends State<PatientListScreen> {
         ),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
-          child: Container(
-            height: 1,
-            color: const Color(0xFFD9E0E2),
-          ),
+          child: Container(height: 1, color: const Color(0xFFD9E0E2)),
         ),
       ),
       body: SafeArea(
         child: ValueListenableBuilder<Box<PatientLocal>>(
-          valueListenable:
-              Hive.box<PatientLocal>('patients').listenable(),
+          valueListenable: Hive.box<PatientLocal>('patients').listenable(),
           builder: (context, box, _) {
             final allPatients = box.values.toList();
 
@@ -194,14 +182,15 @@ class _PatientListScreenState extends State<PatientListScreen> {
                 return true;
               }
 
-              final nameMatches =
-                  patient.name.toLowerCase().contains(query);
+              final nameMatches = patient.name.toLowerCase().contains(query);
 
-              final villageMatches =
-                  patient.village.toLowerCase().contains(query);
+              final villageMatches = patient.village.toLowerCase().contains(
+                query,
+              );
 
-              final idMatches =
-                  patient.clientUuid.toLowerCase().contains(query);
+              final idMatches = patient.clientUuid.toLowerCase().contains(
+                query,
+              );
 
               return nameMatches || villageMatches || idMatches;
             }).toList();
@@ -219,12 +208,7 @@ class _PatientListScreenState extends State<PatientListScreen> {
                       children: [
                         Expanded(
                           child: ListView(
-                            padding: const EdgeInsets.fromLTRB(
-                              16,
-                              14,
-                              16,
-                              100,
-                            ),
+                            padding: const EdgeInsets.fromLTRB(16, 14, 16, 100),
                             children: [
                               _buildSearchField(),
                               const SizedBox(height: 12),
@@ -257,18 +241,14 @@ class _PatientListScreenState extends State<PatientListScreen> {
                                   ),
                                 ),
                               const SizedBox(height: 8),
-                              _buildSectionHeader(
-                                filteredPatients.length,
-                              ),
+                              _buildSectionHeader(filteredPatients.length),
                               const SizedBox(height: 8),
                               if (allPatients.isEmpty)
                                 _buildEmptyState()
                               else if (filteredPatients.isEmpty)
                                 _buildNoResultsState()
                               else
-                                ...filteredPatients.map(
-                                  _buildPatientCard,
-                                ),
+                                ...filteredPatients.map(_buildPatientCard),
                             ],
                           ),
                         ),
@@ -282,27 +262,23 @@ class _PatientListScreenState extends State<PatientListScreen> {
         ),
       ),
       floatingActionButton: Hive.box<PatientLocal>('patients').isNotEmpty
-    ? FloatingActionButton.extended(
-        backgroundColor: const Color(0xFF075965),
-        foregroundColor: Colors.white,
-        elevation: 2,
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => const RegistrationScreen(),
-            ),
-          );
-        },
-        icon: const Icon(Icons.person_add_alt_1),
-        label: const Text(
-          'Add Citizen',
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      )
-    : null,
+          ? FloatingActionButton.extended(
+              backgroundColor: const Color(0xFF075965),
+              foregroundColor: Colors.white,
+              elevation: 2,
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const RegistrationScreen()),
+                );
+              },
+              icon: const Icon(Icons.person_add_alt_1),
+              label: const Text(
+                'Add Citizen',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+            )
+          : null,
     );
   }
 
@@ -315,10 +291,7 @@ class _PatientListScreenState extends State<PatientListScreen> {
       },
       decoration: InputDecoration(
         hintText: 'Search by name or ID',
-        hintStyle: const TextStyle(
-          color: Color(0xFF9AA5A8),
-          fontSize: 14,
-        ),
+        hintStyle: const TextStyle(color: Color(0xFF9AA5A8), fontSize: 14),
         prefixIcon: const Icon(
           Icons.search,
           color: Color(0xFF667276),
@@ -327,10 +300,7 @@ class _PatientListScreenState extends State<PatientListScreen> {
         suffixIcon: _searchQuery.isNotEmpty
             ? IconButton(
                 tooltip: 'Clear search',
-                icon: const Icon(
-                  Icons.close,
-                  size: 19,
-                ),
+                icon: const Icon(Icons.close, size: 19),
                 onPressed: () {
                   setState(() {
                     _searchQuery = '';
@@ -346,22 +316,15 @@ class _PatientListScreenState extends State<PatientListScreen> {
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(7),
-          borderSide: const BorderSide(
-            color: Color(0xFFD5DDDF),
-          ),
+          borderSide: const BorderSide(color: Color(0xFFD5DDDF)),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(7),
-          borderSide: const BorderSide(
-            color: Color(0xFFD5DDDF),
-          ),
+          borderSide: const BorderSide(color: Color(0xFFD5DDDF)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(7),
-          borderSide: const BorderSide(
-            color: Color(0xFF075965),
-            width: 1.5,
-          ),
+          borderSide: const BorderSide(color: Color(0xFF075965), width: 1.5),
         ),
       ),
     );
@@ -386,11 +349,8 @@ class _PatientListScreenState extends State<PatientListScreen> {
               },
               labelStyle: TextStyle(
                 fontSize: 12,
-                fontWeight:
-                    selected ? FontWeight.w600 : FontWeight.w400,
-                color: selected
-                    ? Colors.white
-                    : const Color(0xFF445256),
+                fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                color: selected ? Colors.white : const Color(0xFF445256),
               ),
               selectedColor: const Color(0xFF075965),
               backgroundColor: Colors.white,
@@ -402,10 +362,7 @@ class _PatientListScreenState extends State<PatientListScreen> {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(18),
               ),
-              padding: const EdgeInsets.symmetric(
-                horizontal: 3,
-                vertical: 2,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 2),
             ),
           );
         }).toList(),
@@ -427,10 +384,7 @@ class _PatientListScreenState extends State<PatientListScreen> {
         ),
         const SizedBox(width: 6),
         Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 7,
-            vertical: 2,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
           decoration: BoxDecoration(
             color: const Color(0xFFE7ECEE),
             borderRadius: BorderRadius.circular(10),
@@ -454,9 +408,7 @@ class _PatientListScreenState extends State<PatientListScreen> {
         : patient.name.trim()[0].toUpperCase();
 
     final shortId = patient.clientUuid.length > 13
-        ? patient.clientUuid.substring(
-            patient.clientUuid.length - 13,
-          )
+        ? patient.clientUuid.substring(patient.clientUuid.length - 13)
         : patient.clientUuid;
 
     return Card(
@@ -465,9 +417,7 @@ class _PatientListScreenState extends State<PatientListScreen> {
       color: Colors.white,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
-        side: const BorderSide(
-          color: Color(0xFFD9E0E2),
-        ),
+        side: const BorderSide(color: Color(0xFFD9E0E2)),
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(8),
@@ -475,8 +425,7 @@ class _PatientListScreenState extends State<PatientListScreen> {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) =>
-                  PatientSummaryScreen(patient: patient),
+              builder: (_) => PatientSummaryScreen(patient: patient),
             ),
           );
         },
@@ -499,8 +448,7 @@ class _PatientListScreenState extends State<PatientListScreen> {
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       patient.name,
@@ -541,10 +489,7 @@ class _PatientListScreenState extends State<PatientListScreen> {
                   ],
                 ),
               ),
-              const Icon(
-                Icons.chevron_right,
-                color: Color(0xFF9AA5A8),
-              ),
+              const Icon(Icons.chevron_right, color: Color(0xFF9AA5A8)),
             ],
           ),
         ),
@@ -554,27 +499,18 @@ class _PatientListScreenState extends State<PatientListScreen> {
 
   Widget _buildSyncBadge(bool synced) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 7,
-        vertical: 3,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
       decoration: BoxDecoration(
-        color: synced
-            ? const Color(0xFFE5F3EA)
-            : const Color(0xFFFFF0DC),
+        color: synced ? const Color(0xFFE5F3EA) : const Color(0xFFFFF0DC),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
-            synced
-                ? Icons.cloud_done_outlined
-                : Icons.cloud_off_outlined,
+            synced ? Icons.cloud_done_outlined : Icons.cloud_off_outlined,
             size: 12,
-            color: synced
-                ? const Color(0xFF267A45)
-                : const Color(0xFFB96A00),
+            color: synced ? const Color(0xFF267A45) : const Color(0xFFB96A00),
           ),
           const SizedBox(width: 3),
           Text(
@@ -582,9 +518,7 @@ class _PatientListScreenState extends State<PatientListScreen> {
             style: TextStyle(
               fontSize: 10,
               fontWeight: FontWeight.w600,
-              color: synced
-                  ? const Color(0xFF267A45)
-                  : const Color(0xFFB96A00),
+              color: synced ? const Color(0xFF267A45) : const Color(0xFFB96A00),
             ),
           ),
         ],
@@ -599,9 +533,7 @@ class _PatientListScreenState extends State<PatientListScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: const Color(0xFFD9E0E2),
-        ),
+        border: Border.all(color: const Color(0xFFD9E0E2)),
       ),
       child: Column(
         children: [
@@ -623,10 +555,7 @@ class _PatientListScreenState extends State<PatientListScreen> {
           const Text(
             'Start by adding a new record to the registry.',
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 12,
-              color: Color(0xFF778286),
-            ),
+            style: TextStyle(fontSize: 12, color: Color(0xFF778286)),
           ),
           const SizedBox(height: 18),
           SizedBox(
@@ -634,9 +563,7 @@ class _PatientListScreenState extends State<PatientListScreen> {
             child: FilledButton.icon(
               style: FilledButton.styleFrom(
                 backgroundColor: const Color(0xFF075965),
-                padding: const EdgeInsets.symmetric(
-                  vertical: 13,
-                ),
+                padding: const EdgeInsets.symmetric(vertical: 13),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(6),
                 ),
@@ -644,16 +571,10 @@ class _PatientListScreenState extends State<PatientListScreen> {
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(
-                    builder: (_) =>
-                        const RegistrationScreen(),
-                  ),
+                  MaterialPageRoute(builder: (_) => const RegistrationScreen()),
                 );
               },
-              icon: const Icon(
-                Icons.person_add_alt_1,
-                size: 18,
-              ),
+              icon: const Icon(Icons.person_add_alt_1, size: 18),
               label: const Text('Add Citizen'),
             ),
           ),
@@ -668,26 +589,16 @@ class _PatientListScreenState extends State<PatientListScreen> {
       padding: const EdgeInsets.all(28),
       child: Column(
         children: [
-          const Icon(
-            Icons.search_off,
-            size: 46,
-            color: Color(0xFF9AA5A8),
-          ),
+          const Icon(Icons.search_off, size: 46, color: Color(0xFF9AA5A8)),
           const SizedBox(height: 14),
           const Text(
             'No matching citizens',
-            style: TextStyle(
-              fontSize: 17,
-              fontWeight: FontWeight.w700,
-            ),
+            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 6),
           const Text(
             'Try searching with another name or ID.',
-            style: TextStyle(
-              color: Color(0xFF7A8588),
-              fontSize: 12,
-            ),
+            style: TextStyle(color: Color(0xFF7A8588), fontSize: 12),
           ),
         ],
       ),

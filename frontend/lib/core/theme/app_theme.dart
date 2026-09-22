@@ -15,15 +15,16 @@ class AppTheme {
   static const Color textSecondary = Color(0xFF64706C);
 
   static ThemeData lightTheme() {
-    final colorScheme = ColorScheme.fromSeed(
-      seedColor: primary,
-      brightness: Brightness.light,
-    ).copyWith(
-      primary: primary,
-      onPrimary: Colors.white,
-      surface: surface,
-      error: error,
-    );
+    final colorScheme =
+        ColorScheme.fromSeed(
+          seedColor: primary,
+          brightness: Brightness.light,
+        ).copyWith(
+          primary: primary,
+          onPrimary: Colors.white,
+          surface: surface,
+          error: error,
+        );
 
     return ThemeData(
       useMaterial3: true,
@@ -43,9 +44,7 @@ class AppTheme {
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.all(Radius.circular(16)),
-          side: BorderSide(
-            color: Color(0xFFE5EAE8),
-          ),
+          side: BorderSide(color: Color(0xFFE5EAE8)),
         ),
       ),
 
@@ -54,28 +53,19 @@ class AppTheme {
         fillColor: surface,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(
-            color: Color(0xFFD8E0DD),
-          ),
+          borderSide: const BorderSide(color: Color(0xFFD8E0DD)),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(
-            color: Color(0xFFD8E0DD),
-          ),
+          borderSide: const BorderSide(color: Color(0xFFD8E0DD)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(
-            color: primary,
-            width: 2,
-          ),
+          borderSide: const BorderSide(color: primary, width: 2),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(
-            color: error,
-          ),
+          borderSide: const BorderSide(color: error),
         ),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
@@ -99,9 +89,7 @@ class AppTheme {
         style: OutlinedButton.styleFrom(
           foregroundColor: primary,
           minimumSize: const Size.fromHeight(52),
-          side: const BorderSide(
-            color: primary,
-          ),
+          side: const BorderSide(color: primary),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
@@ -109,9 +97,7 @@ class AppTheme {
       ),
 
       textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(
-          foregroundColor: primary,
-        ),
+        style: TextButton.styleFrom(foregroundColor: primary),
       ),
 
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(

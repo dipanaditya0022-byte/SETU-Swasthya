@@ -19,7 +19,8 @@ class TriageDispositionScreen extends StatefulWidget {
   });
 
   @override
-  State<TriageDispositionScreen> createState() => _TriageDispositionScreenState();
+  State<TriageDispositionScreen> createState() =>
+      _TriageDispositionScreenState();
 }
 
 class _TriageDispositionScreenState extends State<TriageDispositionScreen> {
@@ -52,8 +53,7 @@ class _TriageDispositionScreenState extends State<TriageDispositionScreen> {
       setState(() {
         _isSubmitting = false;
         _hasSubmitError = true;
-        _submitError =
-            'This patient is missing the backend patient ID. Please refresh the patient list and try again.';
+        _submitError = 'This patient is missing the backend patient ID. Please refresh the patient list and try again.';
       });
       return;
     }
@@ -83,8 +83,8 @@ class _TriageDispositionScreenState extends State<TriageDispositionScreen> {
         _submitError = error is AuthenticationException
             ? error.message
             : error is NetworkException
-                ? error.message
-                : error.toString();
+            ? error.message
+            : error.toString();
       });
     }
   }
@@ -100,9 +100,7 @@ class _TriageDispositionScreenState extends State<TriageDispositionScreen> {
       final systolic = int.parse(parts[0].trim());
       final diastolic = int.parse(parts[1].trim());
 
-      if (systolic >= 160 ||
-          diastolic >= 110 ||
-          hemoglobin < 7.0) {
+      if (systolic >= 160 || diastolic >= 110 || hemoglobin < 7.0) {
         return 'EMERGENCY';
       }
 
@@ -128,10 +126,8 @@ class _TriageDispositionScreenState extends State<TriageDispositionScreen> {
           text: Color(0xFFB71C1C),
           icon: Icons.warning_rounded,
           title: 'Emergency',
-          description:
-              'Immediate clinical attention is required.',
-          action:
-              'Arrange immediate physician evaluation and prepare for emergency referral according to approved clinical protocol.',
+          description: 'Immediate clinical attention is required.',
+          action: 'Arrange immediate physician evaluation and prepare for emergency referral according to approved clinical protocol.',
         );
 
       case 'PRIORITY':
@@ -142,10 +138,8 @@ class _TriageDispositionScreenState extends State<TriageDispositionScreen> {
           text: Color(0xFF9A5A00),
           icon: Icons.priority_high_rounded,
           title: 'Priority',
-          description:
-              'The patient requires timely clinical review.',
-          action:
-              'Review by the appropriate medical officer within the recommended timeframe and follow the approved care protocol.',
+          description: 'The patient requires timely clinical review.',
+          action: 'Review by the appropriate medical officer within the recommended timeframe and follow the approved care protocol.',
         );
 
       default:
@@ -158,8 +152,7 @@ class _TriageDispositionScreenState extends State<TriageDispositionScreen> {
           title: 'Routine',
           description:
               'No high-risk indicator was identified by this assessment.',
-          action:
-              'Continue routine care and follow the next scheduled clinical review according to protocol.',
+          action: 'Continue routine care and follow the next scheduled clinical review according to protocol.',
         );
     }
   }
@@ -177,35 +170,25 @@ class _TriageDispositionScreenState extends State<TriageDispositionScreen> {
         foregroundColor: const Color(0xFF12343B),
         title: const Text(
           'Triage Result',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-          ),
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
         ),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
-          child: Container(
-            height: 1,
-            color: const Color(0xFFD9E0E2),
-          ),
+          child: Container(height: 1, color: const Color(0xFFD9E0E2)),
         ),
       ),
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final contentWidth =
-                constraints.maxWidth > 650 ? 620.0 : constraints.maxWidth;
+            final contentWidth = constraints.maxWidth > 650
+                ? 620.0
+                : constraints.maxWidth;
 
             return Center(
               child: SizedBox(
                 width: contentWidth,
                 child: ListView(
-                  padding: const EdgeInsets.fromLTRB(
-                    16,
-                    18,
-                    16,
-                    30,
-                  ),
+                  padding: const EdgeInsets.fromLTRB(16, 18, 16, 30),
                   children: [
                     if (_isSubmitting)
                       Container(
@@ -214,18 +197,14 @@ class _TriageDispositionScreenState extends State<TriageDispositionScreen> {
                         decoration: BoxDecoration(
                           color: const Color(0xFFEAF4F5),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: const Color(0xFFC7DFE2),
-                          ),
+                          border: Border.all(color: const Color(0xFFC7DFE2)),
                         ),
                         child: const Row(
                           children: [
                             SizedBox(
                               width: 18,
                               height: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                              ),
+                              child: CircularProgressIndicator(strokeWidth: 2),
                             ),
                             SizedBox(width: 12),
                             Expanded(
@@ -247,9 +226,7 @@ class _TriageDispositionScreenState extends State<TriageDispositionScreen> {
                         decoration: BoxDecoration(
                           color: const Color(0xFFFFF3F3),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: const Color(0xFFE57373),
-                          ),
+                          border: Border.all(color: const Color(0xFFE57373)),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -264,9 +241,7 @@ class _TriageDispositionScreenState extends State<TriageDispositionScreen> {
                             const SizedBox(height: 6),
                             Text(
                               _submitError ?? 'Please try again.',
-                              style: const TextStyle(
-                                color: Color(0xFF7A1C1C),
-                              ),
+                              style: const TextStyle(color: Color(0xFF7A1C1C)),
                             ),
                             const SizedBox(height: 10),
                             FilledButton.icon(
@@ -291,7 +266,8 @@ class _TriageDispositionScreenState extends State<TriageDispositionScreen> {
                     const SizedBox(height: 20),
                     _buildClinicalNotice(),
                     const SizedBox(height: 20),
-                    if (riskLevel == 'EMERGENCY' || riskLevel == 'PRIORITY') ...[
+                    if (riskLevel == 'EMERGENCY' ||
+                        riskLevel == 'PRIORITY') ...[
                       SizedBox(
                         width: double.infinity,
                         height: 52,
@@ -315,9 +291,7 @@ class _TriageDispositionScreenState extends State<TriageDispositionScreen> {
 
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
-                                content: Text(
-                                  'Referral created successfully.',
-                                ),
+                                content: Text('Referral created successfully.'),
                               ),
                             );
                           },
@@ -335,9 +309,7 @@ class _TriageDispositionScreenState extends State<TriageDispositionScreen> {
                             riskLevel == 'EMERGENCY'
                                 ? 'Create Emergency Referral'
                                 : 'Create Referral',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w700,
-                            ),
+                            style: const TextStyle(fontWeight: FontWeight.w700),
                           ),
                         ),
                       ),
@@ -350,9 +322,7 @@ class _TriageDispositionScreenState extends State<TriageDispositionScreen> {
                         onPressed: () => Navigator.pop(context),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: const Color(0xFF075965),
-                          side: const BorderSide(
-                            color: Color(0xFF075965),
-                          ),
+                          side: const BorderSide(color: Color(0xFF075965)),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(7),
                           ),
@@ -360,9 +330,7 @@ class _TriageDispositionScreenState extends State<TriageDispositionScreen> {
                         icon: const Icon(Icons.arrow_back),
                         label: const Text(
                           'Back to Triage',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                          ),
+                          style: TextStyle(fontWeight: FontWeight.w600),
                         ),
                       ),
                     ),
@@ -382,10 +350,7 @@ class _TriageDispositionScreenState extends State<TriageDispositionScreen> {
       decoration: BoxDecoration(
         color: presentation.background,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: presentation.border,
-          width: 1.5,
-        ),
+        border: Border.all(color: presentation.border, width: 1.5),
       ),
       child: Column(
         children: [
@@ -396,11 +361,7 @@ class _TriageDispositionScreenState extends State<TriageDispositionScreen> {
               color: presentation.iconBackground,
               shape: BoxShape.circle,
             ),
-            child: Icon(
-              presentation.icon,
-              color: Colors.white,
-              size: 30,
-            ),
+            child: Icon(presentation.icon, color: Colors.white, size: 30),
           ),
           const SizedBox(height: 14),
           const Text(
@@ -473,19 +434,12 @@ class _TriageDispositionScreenState extends State<TriageDispositionScreen> {
   }) {
     return Row(
       children: [
-        Icon(
-          icon,
-          color: const Color(0xFF075965),
-          size: 21,
-        ),
+        Icon(icon, color: const Color(0xFF075965), size: 21),
         const SizedBox(width: 12),
         Expanded(
           child: Text(
             label,
-            style: const TextStyle(
-              color: Color(0xFF5E6A6E),
-              fontSize: 13,
-            ),
+            style: const TextStyle(color: Color(0xFF5E6A6E), fontSize: 13),
           ),
         ),
         Text(
@@ -499,10 +453,7 @@ class _TriageDispositionScreenState extends State<TriageDispositionScreen> {
         const SizedBox(width: 5),
         Text(
           unit,
-          style: const TextStyle(
-            fontSize: 11,
-            color: Color(0xFF7A8588),
-          ),
+          style: const TextStyle(fontSize: 11, color: Color(0xFF7A8588)),
         ),
       ],
     );
@@ -514,9 +465,7 @@ class _TriageDispositionScreenState extends State<TriageDispositionScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(9),
-        border: Border.all(
-          color: const Color(0xFFD9E0E2),
-        ),
+        border: Border.all(color: const Color(0xFFD9E0E2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -571,11 +520,7 @@ class _TriageDispositionScreenState extends State<TriageDispositionScreen> {
       child: const Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            Icons.info_outline,
-            size: 18,
-            color: Color(0xFF657276),
-          ),
+          Icon(Icons.info_outline, size: 18, color: Color(0xFF657276)),
           SizedBox(width: 9),
           Expanded(
             child: Text(
@@ -604,20 +549,14 @@ class _TriageDispositionScreenState extends State<TriageDispositionScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(9),
-        border: Border.all(
-          color: const Color(0xFFD9E0E2),
-        ),
+        border: Border.all(color: const Color(0xFFD9E0E2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(
-                icon,
-                color: const Color(0xFF075965),
-                size: 21,
-              ),
+              Icon(icon, color: const Color(0xFF075965), size: 21),
               const SizedBox(width: 8),
               Text(
                 title,
