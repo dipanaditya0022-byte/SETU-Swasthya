@@ -4,6 +4,9 @@ class ApiConfig {
   const ApiConfig._();
 
   static String get baseUrl {
+    const configuredBaseUrl = String.fromEnvironment('API_BASE_URL');
+    if (configuredBaseUrl.isNotEmpty) return configuredBaseUrl;
+
     if (kIsWeb) {
       return 'http://localhost:8002';
     }

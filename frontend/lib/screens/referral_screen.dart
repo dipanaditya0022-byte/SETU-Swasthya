@@ -87,7 +87,9 @@ class _ReferralScreenState extends State<ReferralScreen> {
       final data = await _apiService.getFacilities();
       final facilities = data
           .map(_FacilityOption.fromJson)
-          .where((facility) => facility.id.isNotEmpty && facility.name.isNotEmpty)
+          .where(
+            (facility) => facility.id.isNotEmpty && facility.name.isNotEmpty,
+          )
           .toList(growable: false);
 
       if (!mounted) return;
@@ -231,7 +233,9 @@ class _ReferralScreenState extends State<ReferralScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Referral saved locally, but backend submission failed: $message'),
+        content: Text(
+          'Referral saved locally, but backend submission failed: $message',
+        ),
       ),
     );
   }
@@ -248,10 +252,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
         foregroundColor: const Color(0xFF12343B),
         title: const Text(
           'Create Referral',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-          ),
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
         ),
       ),
       body: SafeArea(
@@ -334,7 +335,8 @@ class _ReferralScreenState extends State<ReferralScreen> {
                     hint: Text(
                       _isLoadingFacilities
                           ? 'Loading facilities...'
-                          : _facilityLoadError ?? 'Select a destination facility',
+                          : _facilityLoadError ??
+                                'Select a destination facility',
                     ),
                     decoration: InputDecoration(
                       labelText: 'Destination Facility',
@@ -418,9 +420,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
                       : const Icon(Icons.send_outlined),
                   label: const Text(
                     'Create Referral',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.w700),
                   ),
                 ),
               ),
@@ -453,20 +453,14 @@ class _ReferralScreenState extends State<ReferralScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(9),
-        border: Border.all(
-          color: const Color(0xFFD9E0E2),
-        ),
+        border: Border.all(color: const Color(0xFFD9E0E2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(
-                icon,
-                color: const Color(0xFF075965),
-                size: 21,
-              ),
+              Icon(icon, color: const Color(0xFF075965), size: 21),
               const SizedBox(width: 8),
               Text(
                 title,

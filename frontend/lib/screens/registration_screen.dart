@@ -14,8 +14,7 @@ class RegistrationScreen extends StatefulWidget {
 }
 
 class _RegistrationScreenState extends State<RegistrationScreen> {
-  static const String _facilityId =
-      '5623cb23-b615-4eeb-acdb-cc5b5159b639';
+  static const String _facilityId = '5623cb23-b615-4eeb-acdb-cc5b5159b639';
 
   final _formKey = GlobalKey<FormState>();
   final ApiService _apiService = ApiService();
@@ -48,11 +47,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
     final selectedDate = await showDatePicker(
       context: context,
-      initialDate: DateTime(
-        now.year - 25,
-        now.month,
-        now.day,
-      ),
+      initialDate: DateTime(now.year - 25, now.month, now.day),
       firstDate: DateTime(1900),
       lastDate: now,
       helpText: 'Select date of birth',
@@ -178,11 +173,9 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     }
 
     if (_selectedGender == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select a gender.'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please select a gender.')));
       return;
     }
 
@@ -205,9 +198,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       age = _calculateAgeFromDob(_dobController.text.trim());
     } catch (_) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter a valid date of birth.'),
-        ),
+        const SnackBar(content: Text('Please enter a valid date of birth.')),
       );
       return;
     }
@@ -246,9 +237,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Citizen registered successfully.'),
-        ),
+        const SnackBar(content: Text('Citizen registered successfully.')),
       );
 
       if (Navigator.of(context).canPop()) {
@@ -280,11 +269,8 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.message),
-        ),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(e.message)));
     } catch (_) {
       if (!mounted) {
         return;
@@ -316,17 +302,11 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         foregroundColor: const Color(0xFF12343B),
         title: const Text(
           'Add Citizen',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-          ),
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
         ),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
-          child: Container(
-            height: 1,
-            color: const Color(0xFFD9E0E2),
-          ),
+          child: Container(height: 1, color: const Color(0xFFD9E0E2)),
         ),
       ),
       body: SafeArea(
@@ -342,12 +322,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                 child: Form(
                   key: _formKey,
                   child: ListView(
-                    padding: const EdgeInsets.fromLTRB(
-                      16,
-                      16,
-                      16,
-                      32,
-                    ),
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
                     children: [
                       _buildSection(
                         title: 'Personal Details',
@@ -358,8 +333,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                             hint: 'e.g. John Doe',
                             icon: Icons.person_outline,
                             validator: (value) {
-                              if (value == null ||
-                                  value.trim().isEmpty) {
+                              if (value == null || value.trim().isEmpty) {
                                 return 'Please enter the full name';
                               }
 
@@ -379,8 +353,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                             readOnly: true,
                             onTap: _selectDateOfBirth,
                             validator: (value) {
-                              if (value == null ||
-                                  value.trim().isEmpty) {
+                              if (value == null || value.trim().isEmpty) {
                                 return 'Please select date of birth';
                               }
 
@@ -397,8 +370,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                             icon: Icons.phone_outlined,
                             keyboardType: TextInputType.phone,
                             validator: (value) {
-                              final phone =
-                                  value?.trim() ?? '';
+                              final phone = value?.trim() ?? '';
 
                               if (phone.isEmpty) {
                                 return 'Please enter phone number';
@@ -466,25 +438,19 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                         width: double.infinity,
                         child: FilledButton(
                           style: FilledButton.styleFrom(
-                            backgroundColor:
-                                const Color(0xFF075965),
+                            backgroundColor: const Color(0xFF075965),
                             foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(
-                              vertical: 15,
-                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 15),
                             shape: RoundedRectangleBorder(
-                              borderRadius:
-                                  BorderRadius.circular(6),
+                              borderRadius: BorderRadius.circular(6),
                             ),
                           ),
-                          onPressed:
-                              _isLoading ? null : _registerCitizen,
+                          onPressed: _isLoading ? null : _registerCitizen,
                           child: _isLoading
                               ? const SizedBox(
                                   width: 20,
                                   height: 20,
-                                  child:
-                                      CircularProgressIndicator(
+                                  child: CircularProgressIndicator(
                                     strokeWidth: 2,
                                     color: Colors.white,
                                   ),
@@ -518,9 +484,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(7),
-        border: Border.all(
-          color: const Color(0xFFD9E0E2),
-        ),
+        border: Border.all(color: const Color(0xFFD9E0E2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -561,11 +525,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
-        prefixIcon: Icon(
-          icon,
-          size: 20,
-          color: const Color(0xFF5D6B6F),
-        ),
+        prefixIcon: Icon(icon, size: 20, color: const Color(0xFF5D6B6F)),
         filled: true,
         fillColor: Colors.white,
         contentPadding: const EdgeInsets.symmetric(
@@ -574,22 +534,15 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(5),
-          borderSide: const BorderSide(
-            color: Color(0xFFBFC9CC),
-          ),
+          borderSide: const BorderSide(color: Color(0xFFBFC9CC)),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(5),
-          borderSide: const BorderSide(
-            color: Color(0xFFBFC9CC),
-          ),
+          borderSide: const BorderSide(color: Color(0xFFBFC9CC)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(5),
-          borderSide: const BorderSide(
-            color: Color(0xFF075965),
-            width: 1.5,
-          ),
+          borderSide: const BorderSide(color: Color(0xFF075965), width: 1.5),
         ),
       ),
     );
@@ -601,56 +554,48 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       children: [
         const Text(
           'Gender',
-          style: TextStyle(
-            fontSize: 12,
-            color: Color(0xFF526064),
-          ),
+          style: TextStyle(fontSize: 12, color: Color(0xFF526064)),
         ),
         const SizedBox(height: 5),
         RadioGroup<String>(
-  groupValue: _selectedGender,
-  onChanged: (value) {
-    setState(() {
-      _selectedGender = value;
-    });
-  },
-  child: Row(
-    children: [
-      _buildGenderOption('Male'),
-      _buildGenderOption('Female'),
-      _buildGenderOption('Other'),
-    ],
-  ),
-),
+          groupValue: _selectedGender,
+          onChanged: (value) {
+            setState(() {
+              _selectedGender = value;
+            });
+          },
+          child: Row(
+            children: [
+              _buildGenderOption('Male'),
+              _buildGenderOption('Female'),
+              _buildGenderOption('Other'),
+            ],
+          ),
+        ),
       ],
     );
   }
 
   Widget _buildGenderOption(String gender) {
-  return Expanded(
-    // RadioListTile paints its ink splash/selection highlight on the
-    // nearest Material ancestor -- _buildSection's own white-background
-    // Container (not a Material) sits between this and the Scaffold,
-    // which made those effects invisible (confirmed live via Flutter's
-    // own "ListTile background color or ink splashes may be invisible"
-    // assertion). `type: MaterialType.transparency` provides that
-    // Material surface locally without painting any visible background
-    // of its own, so the section's white card styling is untouched.
-    child: Material(
-      type: MaterialType.transparency,
-      child: RadioListTile<String>(
-        value: gender,
-        title: Text(
-          gender,
-          style: const TextStyle(
-            fontSize: 12,
-          ),
+    return Expanded(
+      // RadioListTile paints its ink splash/selection highlight on the
+      // nearest Material ancestor -- _buildSection's own white-background
+      // Container (not a Material) sits between this and the Scaffold,
+      // which made those effects invisible (confirmed live via Flutter's
+      // own "ListTile background color or ink splashes may be invisible"
+      // assertion). `type: MaterialType.transparency` provides that
+      // Material surface locally without painting any visible background
+      // of its own, so the section's white card styling is untouched.
+      child: Material(
+        type: MaterialType.transparency,
+        child: RadioListTile<String>(
+          value: gender,
+          title: Text(gender, style: const TextStyle(fontSize: 12)),
+          contentPadding: EdgeInsets.zero,
+          dense: true,
+          activeColor: const Color(0xFF075965),
         ),
-        contentPadding: EdgeInsets.zero,
-        dense: true,
-        activeColor: const Color(0xFF075965),
       ),
-    ),
-  );
-}
+    );
+  }
 }

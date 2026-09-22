@@ -51,9 +51,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       }
 
       final referralLists = await Future.wait(
-        facilityIds.map(
-          (id) => _apiService.getReferrals(facilityId: id),
-        ),
+        facilityIds.map((id) => _apiService.getReferrals(facilityId: id)),
       );
       final referralsById = <String, Map<String, dynamic>>{};
       for (final referrals in referralLists) {
@@ -85,8 +83,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
           priorityReferrals++;
         }
 
-        final destinationId =
-            (referral['destination_facility_id'] ?? '').toString();
+        final destinationId = (referral['destination_facility_id'] ?? '')
+            .toString();
         final destinationName = facilityNames[destinationId] ?? destinationId;
         if (destinationName.isNotEmpty) {
           facilityCounts.update(
@@ -138,32 +136,30 @@ class _ReportsScreenState extends State<ReportsScreen> {
         foregroundColor: AppTheme.textPrimary,
         title: const Text(
           'Reports & Analytics',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-          ),
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
         ),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
-          child: Container(
-            height: 1,
-            color: const Color(0xFFD9E0E2),
-          ),
+          child: Container(height: 1, color: const Color(0xFFD9E0E2)),
         ),
       ),
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final width = constraints.maxWidth > 850 ? 820.0 : constraints.maxWidth;
+            final width = constraints.maxWidth > 850
+                ? 820.0
+                : constraints.maxWidth;
 
             return Center(
               child: SizedBox(
                 width: width,
                 child: ValueListenableBuilder(
-                  valueListenable: Hive.box<PatientLocal>('patients').listenable(),
+                  valueListenable: Hive.box<PatientLocal>('patients')
+                      .listenable(),
                   builder: (context, Box<PatientLocal> patientBox, _) {
-                    final pendingSyncPatients =
-                        patientBox.values.where((patient) => !patient.synced).length;
+                    final pendingSyncPatients = patientBox.values
+                        .where((patient) => !patient.synced)
+                        .length;
 
                     return ListView(
                       padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
@@ -218,18 +214,12 @@ class _ReportsScreenState extends State<ReportsScreen> {
       decoration: BoxDecoration(
         color: const Color(0xFFEAF4F5),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: const Color(0xFFC7DFE2),
-        ),
+        border: Border.all(color: const Color(0xFFC7DFE2)),
       ),
       child: const Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            Icons.analytics_outlined,
-            color: AppTheme.primary,
-            size: 24,
-          ),
+          Icon(Icons.analytics_outlined, color: AppTheme.primary, size: 24),
           SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -350,11 +340,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
               color: iconColor.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(
-              icon,
-              color: iconColor,
-              size: 23,
-            ),
+            child: Icon(icon, color: iconColor, size: 23),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -502,11 +488,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
         children: [
           Row(
             children: [
-              Icon(
-                icon,
-                color: AppTheme.primary,
-                size: 21,
-              ),
+              Icon(icon, color: AppTheme.primary, size: 21),
               const SizedBox(width: 8),
               Text(
                 title,
@@ -533,19 +515,12 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }) {
     return Row(
       children: [
-        Icon(
-          icon,
-          color: color,
-          size: 21,
-        ),
+        Icon(icon, color: color, size: 21),
         const SizedBox(width: 10),
         Expanded(
           child: Text(
             label,
-            style: const TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 12,
-            ),
+            style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12),
           ),
         ),
         Text(
@@ -564,9 +539,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
     return BoxDecoration(
       color: Colors.white,
       borderRadius: BorderRadius.circular(12),
-      border: Border.all(
-        color: const Color(0xFFD9E0E2),
-      ),
+      border: Border.all(color: const Color(0xFFD9E0E2)),
     );
   }
 }

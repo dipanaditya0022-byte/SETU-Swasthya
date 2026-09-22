@@ -1,7 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+
 import 'dart:async';
+
 import 'models/patient.dart';
 import 'api_service.dart';
 
@@ -11,13 +13,13 @@ class SyncService {
   bool _isSyncing = false;
 
   void start() {
-    _connectivitySubscription ??= Connectivity().onConnectivityChanged.listen(
-      (results) {
-        if (_hasNetworkConnection(results)) {
-          syncUnsyncedPatients();
-        }
-      },
-    );
+    _connectivitySubscription ??= Connectivity().onConnectivityChanged.listen((
+      results,
+    ) {
+      if (_hasNetworkConnection(results)) {
+        syncUnsyncedPatients();
+      }
+    });
 
     Connectivity().checkConnectivity().then((results) {
       if (_hasNetworkConnection(results)) {
@@ -64,8 +66,9 @@ class SyncService {
             clientUuid: patient.clientUuid,
           );
 
-          final backendPatientId =
-              (createdPatient['id'] ?? '').toString().trim();
+          final backendPatientId = (createdPatient['id'] ?? '')
+              .toString()
+              .trim();
           if (backendPatientId.isNotEmpty) {
             patient.backendPatientId = backendPatientId;
           }

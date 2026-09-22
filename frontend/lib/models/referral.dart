@@ -1,15 +1,6 @@
-enum ReferralUrgency {
-  emergency,
-  priority,
-}
+enum ReferralUrgency { emergency, priority }
 
-enum ReferralStatus {
-  pending,
-  accepted,
-  inTransit,
-  completed,
-  cancelled,
-}
+enum ReferralStatus { pending, accepted, inTransit, completed, cancelled }
 
 class Referral {
   final String id;
@@ -34,9 +25,7 @@ class Referral {
     required this.createdAt,
   });
 
-  Referral copyWith({
-    ReferralStatus? status,
-  }) {
+  Referral copyWith({ReferralStatus? status}) {
     return Referral(
       id: id,
       patientId: patientId,

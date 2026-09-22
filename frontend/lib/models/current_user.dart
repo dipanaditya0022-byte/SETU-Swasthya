@@ -19,7 +19,9 @@ class CurrentUser {
 
   factory CurrentUser.fromJson(Map<String, dynamic> json) {
     final scope = json['scope'];
-    final scopeMap = scope is Map ? Map<String, dynamic>.from(scope) : <String, dynamic>{};
+    final scopeMap = scope is Map
+        ? Map<String, dynamic>.from(scope)
+        : <String, dynamic>{};
     final permissions = json['permissions'];
 
     return CurrentUser(
@@ -27,14 +29,20 @@ class CurrentUser {
       role: (json['role'] ?? '').toString(),
       permissions: permissions is List
           ? permissions
-              .map((item) => item?.toString() ?? '')
-              .where((item) => item.isNotEmpty)
-              .toList(growable: false)
+                .map((item) => item?.toString() ?? '')
+                .where((item) => item.isNotEmpty)
+                .toList(growable: false)
           : const [],
-      orgUnitId: (scopeMap['org_unit_id'] ?? scopeMap['orgUnitId'] ?? '').toString().isEmpty
+      orgUnitId:
+          (scopeMap['org_unit_id'] ?? scopeMap['orgUnitId'] ?? '')
+              .toString()
+              .isEmpty
           ? null
           : (scopeMap['org_unit_id'] ?? scopeMap['orgUnitId']).toString(),
-      scopePath: (scopeMap['scope_path'] ?? scopeMap['scopePath'] ?? '').toString().isEmpty
+      scopePath:
+          (scopeMap['scope_path'] ?? scopeMap['scopePath'] ?? '')
+              .toString()
+              .isEmpty
           ? null
           : (scopeMap['scope_path'] ?? scopeMap['scopePath']).toString(),
       fullName: (json['full_name'] ?? '').toString(),

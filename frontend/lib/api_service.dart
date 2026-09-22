@@ -90,16 +90,10 @@ class ApiService {
 
       final session = AuthSession.fromJson(data);
 
-      await storage.write(
-        key: 'access_token',
-        value: session.accessToken,
-      );
+      await storage.write(key: 'access_token', value: session.accessToken);
 
       if (session.refreshToken != null && session.refreshToken!.isNotEmpty) {
-        await storage.write(
-          key: 'refresh_token',
-          value: session.refreshToken!,
-        );
+        await storage.write(key: 'refresh_token', value: session.refreshToken!);
       }
 
       return session;
@@ -213,7 +207,8 @@ class ApiService {
       if (error.response?.statusCode == 401 ||
           error.response?.statusCode == 403) {
         throw AuthenticationException(
-          backendMessage ?? 'You are not authorized to save this triage encounter.',
+          backendMessage ??
+              'You are not authorized to save this triage encounter.',
         );
       }
 
@@ -234,7 +229,8 @@ class ApiService {
       }
 
       throw AuthenticationException(
-        backendMessage ?? 'Unable to save the triage encounter. Please try again.',
+        backendMessage ??
+            'Unable to save the triage encounter. Please try again.',
       );
     }
   }
@@ -445,9 +441,7 @@ class ApiService {
       }
 
       if (error.response?.statusCode == 404) {
-        throw AuthenticationException(
-          backendMessage ?? 'Referral not found.',
-        );
+        throw AuthenticationException(backendMessage ?? 'Referral not found.');
       }
 
       if (error.type == DioExceptionType.connectionTimeout ||
@@ -483,25 +477,17 @@ class ApiService {
 
     final response = await dio.post(
       '/auth/token/refresh',
-      data: {
-        'refresh_token': refreshToken,
-      },
+      data: {'refresh_token': refreshToken},
     );
 
     final session = AuthSession.fromJson(
       Map<String, dynamic>.from(response.data as Map? ?? const {}),
     );
 
-    await storage.write(
-      key: 'access_token',
-      value: session.accessToken,
-    );
+    await storage.write(key: 'access_token', value: session.accessToken);
 
     if (session.refreshToken != null && session.refreshToken!.isNotEmpty) {
-      await storage.write(
-        key: 'refresh_token',
-        value: session.refreshToken!,
-      );
+      await storage.write(key: 'refresh_token', value: session.refreshToken!);
     }
 
     return session;
@@ -516,9 +502,7 @@ class ApiService {
 class MfaRequiredException implements Exception {
   final String challengeToken;
 
-  const MfaRequiredException({
-    required this.challengeToken,
-  });
+  const MfaRequiredException({required this.challengeToken});
 
   @override
   String toString() => 'MFA verification required.';
@@ -537,7 +521,8 @@ class NetworkException implements Exception {
   final String message;
 
   const NetworkException([
-    this.message = 'Unable to reach the server. Please check your network and try again.',
+    this.message =
+        'Unable to reach the server. Please check your network and try again.',
   ]);
 
   @override

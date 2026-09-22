@@ -50,13 +50,11 @@ class _LoginScreenState extends State<LoginScreen> {
         loginSuccessful = true;
       }
     } on MfaRequiredException {
-      errorMessage =
-          'Additional verification is required for this account.';
+      errorMessage = 'Additional verification is required for this account.';
     } on AuthenticationException catch (e) {
       errorMessage = e.message;
     } catch (_) {
-      errorMessage =
-          'Unable to sign in. Please check your credentials or server connection.';
+      errorMessage = 'Unable to sign in. Please check your credentials or server connection.';
     }
 
     if (!mounted) {
@@ -70,19 +68,14 @@ class _LoginScreenState extends State<LoginScreen> {
     if (loginSuccessful) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(
-          builder: (_) => const HomeScreen(),
-        ),
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
       );
       return;
     }
 
     if (errorMessage != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(errorMessage),
-        ),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(errorMessage)));
     }
   }
 
@@ -96,18 +89,14 @@ class _LoginScreenState extends State<LoginScreen> {
         foregroundColor: const Color(0xFF12343B),
         title: const Text(
           'Sign In',
-          style: TextStyle(
-            fontWeight: FontWeight.w700,
-          ),
+          style: TextStyle(fontWeight: FontWeight.w700),
         ),
       ),
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              maxWidth: 480,
-            ),
+            constraints: const BoxConstraints(maxWidth: 480),
             child: Form(
               key: _formKey,
               child: Column(
